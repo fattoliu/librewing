@@ -7,8 +7,9 @@ import socket
 import subprocess
 import time
 from pathlib import Path
+from typing import TextIO
 
-from .config import AppConfig, PRIVOXY_CONFIG_FILE
+from .config import AppConfig, LOG_FILE, PRIVOXY_CONFIG_FILE
 
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -40,10 +41,19 @@ def _stop_process(process: subprocess.Popen[str] | None) -> None:
             pass
 
 
+def _open_log(component: str) -> TextIO:
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    handle = LOG_FILE.open("a", encoding="utf-8", buffering=1)
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    handle.write(f"\n[{stamp}] === {component} start ===\n")
+    return handle
+
+
 class ShadowsocksCore:
     def __init__(self, config: AppConfig):
         self.config = config
         self.process: subprocess.Popen[str] | None = None
+        self.log_handle: TextIO | None = None
 
     def find_ss_local(self) -> str:
         path = shutil.which("ss-local")
@@ -64,21 +74,32 @@ class ShadowsocksCore:
                 "sudo systemctl disable --now shadowsocks-libev-local@config.service"
             )
         runtime = self.config.write_runtime()
+        self.log_handle = _open_log("ss-local")
         self.process = subprocess.Popen(
-            [self.find_ss_local(), "-c", str(runtime)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            [self.find_ss_local(), "-c", str(runtime), "-v"],
+            stdout=self.log_handle,
+            stderr=subprocess.STDOUT,
             text=True,
             start_new_session=True,
         )
         time.sleep(0.2)
         if self.process.poll() is not None:
+            code = self.process.returncode
             self.process = None
-            raise RuntimeError("ss-local exited immediately. Check the server, cipher and plugin configuration.")
+            self._close_log()
+            raise RuntimeError(
+                f"ss-local exited immediately with code {code}. Check {LOG_FILE} for details."
+            )
+
+    def _close_log(self) -> None:
+        if self.log_handle:
+            self.log_handle.close()
+            self.log_handle = None
 
     def stop(self) -> None:
         _stop_process(self.process)
         self.process = None
+        self._close_log()
 
     def restart(self) -> None:
         self.stop()
@@ -94,6 +115,7 @@ class HttpProxyCore:
     def __init__(self, config: AppConfig):
         self.config = config
         self.process: subprocess.Popen[str] | None = None
+        self.log_handle: TextIO | None = None
 
     def find_privoxy(self) -> str:
         path = shutil.which("privoxy")
@@ -134,21 +156,32 @@ class HttpProxyCore:
         if not port_available(self.config.http_port):
             raise RuntimeError(f"Local HTTP proxy port {self.config.http_port} is already in use.")
         config = self.write_config()
+        self.log_handle = _open_log("privoxy")
         self.process = subprocess.Popen(
             [self.find_privoxy(), "--no-daemon", str(config)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=self.log_handle,
+            stderr=subprocess.STDOUT,
             text=True,
             start_new_session=True,
         )
         time.sleep(0.2)
         if self.process.poll() is not None:
+            code = self.process.returncode
             self.process = None
-            raise RuntimeError(f"Privoxy could not listen on 127.0.0.1:{self.config.http_port}.")
+            self._close_log()
+            raise RuntimeError(
+                f"Privoxy exited immediately with code {code}. Check {LOG_FILE} for details."
+            )
+
+    def _close_log(self) -> None:
+        if self.log_handle:
+            self.log_handle.close()
+            self.log_handle = None
 
     def stop(self) -> None:
         _stop_process(self.process)
         self.process = None
+        self._close_log()
 
     def restart(self) -> None:
         self.stop()
