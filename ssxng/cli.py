@@ -6,6 +6,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from .backup import export_backup, restore_backup
 from .config import CONFIG_FILE, LOG_FILE, AppConfig
 from .health import format_health_report, run_health_checks
 from .qr import export_profile_qr, scan_profile_qr
@@ -35,6 +36,13 @@ def _parser() -> argparse.ArgumentParser:
     qr_import = sub.add_parser("qr-import", help="decode an ss:// QR image and add it as a server profile")
     qr_import.add_argument("image", type=Path)
     qr_import.add_argument("--no-activate", action="store_true", help="do not make the imported profile active")
+
+    backup_export = sub.add_parser("backup-export", help="export all settings and server profiles")
+    backup_export.add_argument("output", type=Path)
+
+    backup_import = sub.add_parser("backup-import", help="replace local settings from a backup")
+    backup_import.add_argument("input", type=Path)
+    backup_import.add_argument("--yes", action="store_true", help="confirm replacement of the current config")
 
     return parser
 
@@ -75,10 +83,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "show-url":
         if not args.unsafe:
-            print(
-                "Refusing to print a credential-bearing ss:// URL without --unsafe.",
-                file=sys.stderr,
-            )
+            print("Refusing to print a credential-bearing ss:// URL without --unsafe.", file=sys.stderr)
             return 2
         print(build_ss_url(config.profile))
         return 0
@@ -95,6 +100,20 @@ def main(argv: list[str] | None = None) -> int:
             config.active_profile = len(config.profiles) - 1
         config.save()
         print(f"Imported: {profile.name} ({profile.server}:{profile.server_port})")
+        return 0
+
+    if args.command == "backup-export":
+        output = export_backup(config, args.output)
+        print(output)
+        print("Warning: this backup contains Shadowsocks server credentials.", file=sys.stderr)
+        return 0
+
+    if args.command == "backup-import":
+        if not args.yes:
+            print("Refusing to replace the current config without --yes.", file=sys.stderr)
+            return 2
+        restored = restore_backup(args.input)
+        print(f"Restored {len(restored.profiles)} server profile(s).")
         return 0
 
     return 2
