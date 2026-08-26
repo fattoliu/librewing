@@ -1,91 +1,145 @@
 # ShadowsocksX-NG Linux
 
-A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG).
+A practical Linux/Ubuntu Shadowsocks desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG).
 
-The goal is to reproduce the day-to-day ShadowsocksX-NG experience on GNOME/Ubuntu while using native Linux building blocks instead of trying to compile the original Cocoa UI.
+The project keeps the useful architecture and workflows of ShadowsocksX-NG—external `ss-local`, SIP003 plugins, PAC rules, GFWList and a tray-first UI—while replacing macOS-only integration with Linux/GNOME equivalents.
 
-## Current implementation
+## Current features
 
-The first runnable port already includes:
+- Ayatana AppIndicator system tray
+- Multiple Shadowsocks server profiles
+- Add / edit / delete / switch profiles
+- `ss://` URL import and export
+- External `ss-local` process management
+- SIP003 plugin/plugin options support
+- `simple-obfs` support via `obfs-local`
+- Managed Privoxy HTTP proxy layered on local SOCKS5
+- **PAC Mode**
+- **Global Mode**
+- **Manual Mode**
+- **Proxy Off**
+- GNOME system proxy integration
+- GFWList download/update with last-known-good cache
+- User PAC rules
+  - `domain.com` → proxy
+  - `@@domain.com` → direct
+  - `# comment`
+- Background GFWList update
+- PAC diagnostics and rule counts
+- Desktop application entry and auto-start entry
+- Unit tests and GitHub Actions CI
 
-- GNOME system tray via Ayatana AppIndicator
-- Shadowsocks server profiles
-- `ss-local` process management
-- SIP003 plugin fields (`plugin` / `plugin_opts`), including `simple-obfs`
-- PAC mode
-- Global SOCKS mode
-- Manual mode
-- Proxy off mode
-- Embedded PAC HTTP server
-- Custom PAC-rule storage
-- GNOME `gsettings` proxy integration
-- Automatic startup desktop entry
-- Automatic discovery of `obfs-local`
+## Architecture
 
-The core architecture intentionally follows the modern ShadowsocksX-NG design: the GUI controls an external `ss-local` process rather than embedding the Shadowsocks implementation.
-
-## Ubuntu dependencies
-
-```bash
-sudo apt install -y \
-  python3 python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 \
-  shadowsocks-libev libayatana-appindicator3-1
+```text
+GNOME tray UI
+    │
+    ├── server profiles / ss:// sharing
+    ├── GFWList + user PAC rules
+    └── mode switch
+          │
+          ├── Off      → GNOME proxy disabled
+          ├── Manual   → local SOCKS5 only
+          ├── Global   → GNOME HTTP/HTTPS → Privoxy
+          └── PAC      → GNOME PAC → Privoxy
+                                        │
+                                        ▼
+                                   ss-local
+                                        │
+                               SIP003 plugin
+                             (e.g. simple-obfs)
+                                        │
+                                        ▼
+                              Shadowsocks server
 ```
 
-For `simple-obfs`, install `obfs-local` separately. The application can use `/usr/local/bin/obfs-local` or any `obfs-local` available in `PATH`.
+Privoxy is intentionally used for system proxy modes because Linux desktop applications are much more consistent about honoring HTTP/HTTPS proxy settings than a GNOME SOCKS-only configuration.
 
-## Run from source
+## Ubuntu install
 
 ```bash
 git clone https://github.com/fattoliu/shadowsocksx-ng-linux.git
 cd shadowsocksx-ng-linux
 git checkout dev/mvp
-python3 -m pip install --user --break-system-packages .
-~/.local/bin/ssx-ng-linux
-```
-
-Or use the Ubuntu installer:
-
-```bash
 bash scripts/install-ubuntu.sh
 ```
 
-## Server example
+Then run:
 
-In **Servers → Add Server…** enter values equivalent to:
-
-```json
-{
-  "server": "your-server",
-  "server_port": 8388,
-  "password": "your-password",
-  "method": "aes-256-gcm",
-  "plugin": "obfs-local",
-  "plugin_opts": "obfs=tls",
-  "local_port": 1080
-}
+```bash
+~/.local/bin/ssx-ng-linux
 ```
 
-## Migration roadmap
+The installer currently installs:
 
-The original ShadowsocksX-NG feature set also includes capabilities that are not finished yet in this Linux port:
+- Python 3 / PyGObject
+- GTK 3
+- Ayatana AppIndicator
+- `shadowsocks-libev`
+- Privoxy
 
-- GFWList download/update and conversion
-- Full custom PAC-rule editor UI
-- `ss://` URL import/export
-- Clipboard import
-- QR-code generation and scanning
-- HTTP proxy / Privoxy integration
-- Embedded or managed plugin installation (`simple-obfs`, `v2ray-plugin`, `kcptun`)
-- Server latency test and richer profile management
-- Preferences window
-- Debian package / AppImage packaging
-- Automated tests and GitHub Actions builds
+If your server uses `simple-obfs`, install `obfs-local` separately and set:
+
+```text
+Plugin: obfs-local
+Plugin options: obfs=tls
+```
+
+## Modes
+
+### PAC Mode
+
+GFWList and user rules decide which destinations use the local proxy. User DIRECT rules take precedence.
+
+### Global Mode
+
+GNOME HTTP and HTTPS system proxy settings point to the managed local Privoxy instance, which forwards through Shadowsocks.
+
+### Manual Mode
+
+The application keeps `ss-local` running but disables GNOME system proxy configuration. Applications can manually use `127.0.0.1:1080` (or the selected profile's local port).
+
+### Proxy Off
+
+GNOME system proxy is disabled.
+
+## PAC rules
+
+Open **PAC Rules → Edit User Rules…** from the tray menu.
+
+```text
+# proxy this domain
+google.com
+
+# force direct
+@@internal.example.com
+```
+
+Use **PAC Rules → Update GFWList** to refresh the remote list. The previous working copy is preserved if downloading or validation fails.
 
 ## Development
 
-Active development is currently on `dev/mvp`.
+```bash
+python3 -m pip install -e '.[dev]'
+pytest
+```
+
+Active development is on `dev/mvp` and tracked in draft PR #1.
+
+## Near-term roadmap
+
+- More complete Adblock/GFWList rule semantics compatible with ShadowsocksX-NG's `abp.js`
+- Clipboard auto-detection for `ss://` links
+- QR-code import/export
+- Server latency testing
+- Plugin discovery/management
+- Preferences window
+- Better logs and connectivity diagnostics
+- `.deb` / AppImage release packaging
+- Localization
 
 ## License
 
-GPL-3.0-or-later. This project is a Linux reimplementation inspired by ShadowsocksX-NG and is not an official Shadowsocks project.
+GPL-3.0-or-later.
+
+This project is not an official Shadowsocks project.
