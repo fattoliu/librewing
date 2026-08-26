@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -57,17 +59,44 @@ class AppConfig:
             cfg = cls()
             cfg.save()
             return cfg
-        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-        profiles = [ServerProfile.from_dict(x) for x in data.pop("profiles", [])]
-        cfg = cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-        if profiles:
-            cfg.profiles = profiles
-        cfg.active_profile = min(max(cfg.active_profile, 0), len(cfg.profiles) - 1)
-        return cfg
+        try:
+            raw = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("configuration root must be an object")
+            data = dict(raw)
+            profile_data = data.pop("profiles", [])
+            if not isinstance(profile_data, list):
+                raise ValueError("profiles must be a list")
+            profiles = [ServerProfile.from_dict(x) for x in profile_data if isinstance(x, dict)]
+            cfg = cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+            if profiles:
+                cfg.profiles = profiles
+            cfg.active_profile = min(max(int(cfg.active_profile), 0), len(cfg.profiles) - 1)
+            return cfg
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
+            cls._backup_invalid_config()
+            cfg = cls()
+            cfg.save()
+            return cfg
+
+    @staticmethod
+    def _backup_invalid_config() -> Path | None:
+        if not CONFIG_FILE.exists():
+            return None
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup = CONFIG_FILE.with_name(f"config.invalid-{stamp}.json")
+        try:
+            shutil.copy2(CONFIG_FILE, backup)
+            return backup
+        except OSError:
+            return None
 
     def save(self) -> None:
         APP_DIR.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.write_text(json.dumps(asdict(self), ensure_ascii=False, indent=2), encoding="utf-8")
+        content = json.dumps(asdict(self), ensure_ascii=False, indent=2) + "\n"
+        temporary = CONFIG_FILE.with_suffix(".json.tmp")
+        temporary.write_text(content, encoding="utf-8")
+        temporary.replace(CONFIG_FILE)
 
     @property
     def profile(self) -> ServerProfile:
@@ -86,10 +115,8 @@ class AppConfig:
             "mode": "tcp_and_udp",
         }
         if p.plugin:
-            # Resolve early so users get a clear error instead of a cryptic ss-local
-            # child-process failure when a SIP003 plugin is missing or not executable.
             runtime["plugin"] = resolve_plugin(p.plugin)
         if p.plugin_opts:
             runtime["plugin_opts"] = p.plugin_opts
-        RUNTIME_FILE.write_text(json.dumps(runtime, ensure_ascii=False, indent=2), encoding="utf-8")
+        RUNTIME_FILE.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return RUNTIME_FILE
