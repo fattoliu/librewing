@@ -42,11 +42,13 @@ def test_abp_rules_preserve_complex_upstream_syntax(tmp_path, monkeypatch):
     gfw_path.write_bytes(base64.b64encode(gfwlist))
     monkeypatch.setattr(pac, "GFWLIST_FILE", gfw_path)
     config = AppConfig(
-        custom_rules=["@@google.com", "||custom.example"],
+        custom_rules=["google.com", "||custom.example", "@@mail.google.com"],
         profiles=[ServerProfile(server="example.com", password="x")],
     )
     rules = pac.merged_abp_rules(config)
-    assert rules[:2] == ["@@google.com", "||custom.example"]
+    assert rules[:3] == ["google.com", "||custom.example", "@@mail.google.com"]
+    # Mirrors ShadowsocksX-NG PACUtils.swift: a user rule without leading @/|
+    # suppresses the equivalent upstream rule after its marker prefix is stripped.
     assert "||google.com" not in rules
     assert "|https://example.com/path*" in rules
     assert "@@||direct.example.com" in rules
