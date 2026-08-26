@@ -9,7 +9,7 @@ fi
 sudo apt update
 sudo apt install -y \
   python3 python3-pip python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 \
-  shadowsocks-libev privoxy libayatana-appindicator3-1
+  shadowsocks-libev privoxy libayatana-appindicator3-1 qrencode zbar-tools
 
 python3 -m pip install --user --break-system-packages .
 
