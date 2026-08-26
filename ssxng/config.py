@@ -8,6 +8,9 @@ from typing import Any
 APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
+GFWLIST_FILE = APP_DIR / "gfwlist.txt"
+
+DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
 
 
 @dataclass
@@ -34,6 +37,9 @@ class AppConfig:
     pac_port: int = 8090
     autostart: bool = True
     custom_rules: list[str] = field(default_factory=list)
+    gfwlist_url: str = DEFAULT_GFWLIST_URL
+    gfwlist_enabled: bool = True
+    gfwlist_updated_at: str = ""
     profiles: list[ServerProfile] = field(default_factory=lambda: [ServerProfile()])
 
     @classmethod
