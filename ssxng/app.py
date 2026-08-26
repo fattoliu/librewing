@@ -9,7 +9,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("AyatanaAppIndicator3", "0.1")
 from gi.repository import AyatanaAppIndicator3 as AppIndicator3  # noqa: E402
-from gi.repository import GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
 from .core import HttpProxyCore, ShadowsocksCore, SystemProxy
@@ -68,23 +68,23 @@ class RulesDialog(Gtk.Dialog):
         self.set_default_size(660, 520)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=16)
         self.get_content_area().add(box)
-
         self.gfw_enabled = Gtk.CheckButton(label="Use GFWList")
         self.gfw_enabled.set_active(config.gfwlist_enabled)
         box.pack_start(self.gfw_enabled, False, False, 0)
-
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         row.pack_start(Gtk.Label(label="GFWList URL"), False, False, 0)
         self.gfw_url = Gtk.Entry(text=config.gfwlist_url)
         row.pack_start(self.gfw_url, True, True, 0)
         box.pack_start(row, False, False, 0)
-
-        help_label = Gtk.Label(
-            label="One rule per line. domain.com = proxy, @@domain.com = direct, # = comment",
-            halign=Gtk.Align.START,
+        box.pack_start(
+            Gtk.Label(
+                label="One rule per line. domain.com = proxy, @@domain.com = direct, # = comment",
+                halign=Gtk.Align.START,
+            ),
+            False,
+            False,
+            0,
         )
-        box.pack_start(help_label, False, False, 0)
-
         scroller = Gtk.ScrolledWindow()
         scroller.set_hexpand(True)
         scroller.set_vexpand(True)
@@ -154,12 +154,12 @@ class TrayApp:
 
     def rebuild_menu(self) -> None:
         menu = Gtk.Menu()
-        status_text = "On" if self.core.running() else "Off"
-        status = Gtk.MenuItem(label=f"Shadowsocks: {status_text} · {self.config.profile.name}")
+        status = Gtk.MenuItem(
+            label=f"Shadowsocks: {'On' if self.core.running() else 'Off'} · {self.config.profile.name}"
+        )
         status.set_sensitive(False)
         menu.append(status)
         menu.append(Gtk.SeparatorMenuItem())
-
         servers_item = Gtk.MenuItem(label="Servers")
         servers = Gtk.Menu()
         for i, profile in enumerate(self.config.profiles):
@@ -181,7 +181,6 @@ class TrayApp:
             servers.append(item)
         servers_item.set_submenu(servers)
         menu.append(servers_item)
-
         rules_item = Gtk.MenuItem(label="PAC Rules")
         rules = Gtk.Menu()
         edit_rules = Gtk.MenuItem(label="Edit User Rules…")
@@ -190,14 +189,12 @@ class TrayApp:
         update_rules = Gtk.MenuItem(label="Update GFWList")
         update_rules.connect("activate", self.on_update_gfwlist)
         rules.append(update_rules)
-        count = len(load_gfwlist_domains(self.config))
-        info = Gtk.MenuItem(label=f"GFWList: {count} domains")
+        info = Gtk.MenuItem(label=f"GFWList: {len(load_gfwlist_domains(self.config))} domains")
         info.set_sensitive(False)
         rules.append(info)
         rules_item.set_submenu(rules)
         menu.append(rules_item)
         menu.append(Gtk.SeparatorMenuItem())
-
         for label, mode in [
             ("PAC Mode", "pac"),
             ("Global Mode", "global"),
@@ -209,20 +206,16 @@ class TrayApp:
             item.set_active(self.config.mode == mode)
             item.connect("activate", self.on_mode, mode)
             menu.append(item)
-
         menu.append(Gtk.SeparatorMenuItem())
-        restart = Gtk.MenuItem(label="Restart Proxy Core")
-        restart.connect("activate", self.on_restart)
-        menu.append(restart)
-        diagnostics = Gtk.MenuItem(label="Diagnostics…")
-        diagnostics.connect("activate", self.on_diagnostics)
-        menu.append(diagnostics)
-        about = Gtk.MenuItem(label="About")
-        about.connect("activate", self.on_about)
-        menu.append(about)
-        quit_item = Gtk.MenuItem(label="Quit")
-        quit_item.connect("activate", self.on_quit)
-        menu.append(quit_item)
+        for label, callback in [
+            ("Restart Proxy Core", self.on_restart),
+            ("Diagnostics…", self.on_diagnostics),
+            ("About", self.on_about),
+            ("Quit", self.on_quit),
+        ]:
+            item = Gtk.MenuItem(label=label)
+            item.connect("activate", callback)
+            menu.append(item)
         menu.show_all()
         self.indicator.set_menu(menu)
 
@@ -312,8 +305,6 @@ class TrayApp:
         if dialog.run() == Gtk.ResponseType.OK:
             try:
                 profile = parse_ss_url(dialog.entry.get_text())
-                if not profile.plugin and shutil.which("obfs-local"):
-                    profile.plugin = ""
                 self.config.profiles.append(profile)
                 self.config.active_profile = len(self.config.profiles) - 1
                 self.config.save()
@@ -323,9 +314,8 @@ class TrayApp:
         self.rebuild_menu()
 
     def on_copy_url(self, _item) -> None:
-        url = build_ss_url(self.config.profile)
-        clipboard = Gtk.Clipboard.get_default(Gtk.Display.get_default())
-        clipboard.set_text(url, -1)
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text(build_ss_url(self.config.profile), -1)
         clipboard.store()
         self.alert("Current server URL copied to clipboard.", Gtk.MessageType.INFO)
 
@@ -344,7 +334,6 @@ class TrayApp:
                 GLib.idle_add(self._gfwlist_done, count, None)
             except Exception as exc:
                 GLib.idle_add(self._gfwlist_done, 0, str(exc))
-
         threading.Thread(target=worker, daemon=True).start()
         self.alert("GFWList update started in the background.", Gtk.MessageType.INFO)
 
@@ -366,7 +355,7 @@ class TrayApp:
 
     def on_diagnostics(self, _item) -> None:
         p = self.config.profile
-        message = (
+        self.alert(
             f"Mode: {self.config.mode}\n"
             f"Server: {p.name} ({p.server}:{p.server_port})\n"
             f"ss-local: {'running' if self.core.running() else 'stopped'}\n"
@@ -375,9 +364,9 @@ class TrayApp:
             f"HTTP proxy: 127.0.0.1:{self.config.http_port}\n"
             f"PAC: http://127.0.0.1:{self.config.pac_port}/proxy.pac\n"
             f"GFWList domains: {len(load_gfwlist_domains(self.config))}\n"
-            f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}"
+            f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}",
+            Gtk.MessageType.INFO,
         )
-        self.alert(message, Gtk.MessageType.INFO)
 
     def on_about(self, _item) -> None:
         dialog = Gtk.AboutDialog(program_name="ShadowsocksX-NG Linux", version="0.2.0")
@@ -387,7 +376,6 @@ class TrayApp:
         dialog.destroy()
 
     def on_quit(self, _item) -> None:
-        # Deliberately keep proxy processes alive only while the tray is alive in this Linux implementation.
         self.proxy.off()
         self.http.stop()
         self.core.stop()
