@@ -9,6 +9,8 @@ APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
 GFWLIST_FILE = APP_DIR / "gfwlist.txt"
+PRIVOXY_CONFIG_FILE = APP_DIR / "privoxy.conf"
+LOG_FILE = APP_DIR / "app.log"
 
 DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
 
@@ -35,6 +37,7 @@ class AppConfig:
     mode: str = "off"
     active_profile: int = 0
     pac_port: int = 8090
+    http_port: int = 8119
     autostart: bool = True
     custom_rules: list[str] = field(default_factory=list)
     gfwlist_url: str = DEFAULT_GFWLIST_URL
