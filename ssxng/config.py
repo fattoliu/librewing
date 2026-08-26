@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .plugins import resolve_plugin
+
 APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
@@ -84,7 +86,9 @@ class AppConfig:
             "mode": "tcp_and_udp",
         }
         if p.plugin:
-            runtime["plugin"] = p.plugin
+            # Resolve early so users get a clear error instead of a cryptic ss-local
+            # child-process failure when a SIP003 plugin is missing or not executable.
+            runtime["plugin"] = resolve_plugin(p.plugin)
         if p.plugin_opts:
             runtime["plugin_opts"] = p.plugin_opts
         RUNTIME_FILE.write_text(json.dumps(runtime, ensure_ascii=False, indent=2), encoding="utf-8")
