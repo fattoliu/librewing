@@ -13,6 +13,7 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
 from .core import HttpProxyCore, ShadowsocksCore, SystemProxy
+from .diagnostics import tcp_latency, test_http_proxy
 from .pac import PacServer, load_gfwlist_domains, update_gfwlist
 from .share import build_ss_url, parse_ss_url
 
@@ -160,6 +161,7 @@ class TrayApp:
         status.set_sensitive(False)
         menu.append(status)
         menu.append(Gtk.SeparatorMenuItem())
+
         servers_item = Gtk.MenuItem(label="Servers")
         servers = Gtk.Menu()
         for i, profile in enumerate(self.config.profiles):
@@ -181,6 +183,7 @@ class TrayApp:
             servers.append(item)
         servers_item.set_submenu(servers)
         menu.append(servers_item)
+
         rules_item = Gtk.MenuItem(label="PAC Rules")
         rules = Gtk.Menu()
         edit_rules = Gtk.MenuItem(label="Edit User Rules…")
@@ -195,6 +198,7 @@ class TrayApp:
         rules_item.set_submenu(rules)
         menu.append(rules_item)
         menu.append(Gtk.SeparatorMenuItem())
+
         for label, mode in [
             ("PAC Mode", "pac"),
             ("Global Mode", "global"),
@@ -206,8 +210,11 @@ class TrayApp:
             item.set_active(self.config.mode == mode)
             item.connect("activate", self.on_mode, mode)
             menu.append(item)
+
         menu.append(Gtk.SeparatorMenuItem())
         for label, callback in [
+            ("Test Server Latency", self.on_test_latency),
+            ("Test Proxy Connection", self.on_test_proxy),
             ("Restart Proxy Core", self.on_restart),
             ("Diagnostics…", self.on_diagnostics),
             ("About", self.on_about),
@@ -334,6 +341,7 @@ class TrayApp:
                 GLib.idle_add(self._gfwlist_done, count, None)
             except Exception as exc:
                 GLib.idle_add(self._gfwlist_done, 0, str(exc))
+
         threading.Thread(target=worker, daemon=True).start()
         self.alert("GFWList update started in the background.", Gtk.MessageType.INFO)
 
@@ -344,6 +352,33 @@ class TrayApp:
             self.alert(f"GFWList updated: {count} domains.", Gtk.MessageType.INFO)
         self.rebuild_menu()
         return False
+
+    def on_test_latency(self, _item) -> None:
+        def worker() -> None:
+            try:
+                latency = tcp_latency(self.config.profile)
+                GLib.idle_add(self.alert, f"Server TCP latency: {latency:.0f} ms", Gtk.MessageType.INFO)
+            except Exception as exc:
+                GLib.idle_add(self.alert, f"Server latency test failed:\n{exc}")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def on_test_proxy(self, _item) -> None:
+        if not self.ensure_core(need_http=True):
+            return
+
+        def worker() -> None:
+            try:
+                status, latency = test_http_proxy(self.config)
+                GLib.idle_add(
+                    self.alert,
+                    f"Proxy connection OK (HTTP {status})\nRound trip: {latency:.0f} ms",
+                    Gtk.MessageType.INFO,
+                )
+            except Exception as exc:
+                GLib.idle_add(self.alert, f"Proxy connection test failed:\n{exc}")
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def on_restart(self, _item) -> None:
         try:
