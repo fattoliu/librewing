@@ -19,9 +19,16 @@ cp -R "$ROOT/ssxng" "$PKG/usr/lib/shadowsocksx-ng-linux/"
 cat > "$PKG/usr/bin/ssx-ng-linux" <<'EOF'
 #!/usr/bin/env bash
 export PYTHONPATH="/usr/lib/shadowsocksx-ng-linux${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m ssxng.app "$@"
+exec python3 -m ssxng.launcher "$@"
 EOF
 chmod 755 "$PKG/usr/bin/ssx-ng-linux"
+
+cat > "$PKG/usr/bin/ssx-ng-tool" <<'EOF'
+#!/usr/bin/env bash
+export PYTHONPATH="/usr/lib/shadowsocksx-ng-linux${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m ssxng.cli "$@"
+EOF
+chmod 755 "$PKG/usr/bin/ssx-ng-tool"
 
 cat > "$PKG/usr/share/applications/shadowsocksx-ng-linux.desktop" <<'EOF'
 [Desktop Entry]
