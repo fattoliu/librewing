@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -12,6 +13,18 @@ from .config import AppConfig, PRIVOXY_CONFIG_FILE
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, text=True, capture_output=True, check=check)
+
+
+def port_available(port: int, host: str = "127.0.0.1") -> bool:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, int(port)))
+        return True
+    except OSError:
+        return False
+    finally:
+        sock.close()
 
 
 def _stop_process(process: subprocess.Popen[str] | None) -> None:
@@ -44,6 +57,12 @@ class ShadowsocksCore:
         profile = self.config.profile
         if not profile.server or not profile.password:
             raise RuntimeError("Please configure a Shadowsocks server first.")
+        if not port_available(profile.local_port):
+            raise RuntimeError(
+                f"Local SOCKS port {profile.local_port} is already in use.\n\n"
+                "If you previously enabled shadowsocks-libev as a systemd service, stop it before using this client:\n"
+                "sudo systemctl disable --now shadowsocks-libev-local@config.service"
+            )
         runtime = self.config.write_runtime()
         self.process = subprocess.Popen(
             [self.find_ss_local(), "-c", str(runtime)],
@@ -52,9 +71,10 @@ class ShadowsocksCore:
             text=True,
             start_new_session=True,
         )
-        time.sleep(0.15)
+        time.sleep(0.2)
         if self.process.poll() is not None:
-            raise RuntimeError("ss-local exited immediately. Check the server/plugin configuration.")
+            self.process = None
+            raise RuntimeError("ss-local exited immediately. Check the server, cipher and plugin configuration.")
 
     def stop(self) -> None:
         _stop_process(self.process)
@@ -111,6 +131,8 @@ class HttpProxyCore:
     def start(self) -> None:
         if self.running():
             return
+        if not port_available(self.config.http_port):
+            raise RuntimeError(f"Local HTTP proxy port {self.config.http_port} is already in use.")
         config = self.write_config()
         self.process = subprocess.Popen(
             [self.find_privoxy(), "--no-daemon", str(config)],
@@ -119,8 +141,9 @@ class HttpProxyCore:
             text=True,
             start_new_session=True,
         )
-        time.sleep(0.15)
+        time.sleep(0.2)
         if self.process.poll() is not None:
+            self.process = None
             raise RuntimeError(f"Privoxy could not listen on 127.0.0.1:{self.config.http_port}.")
 
     def stop(self) -> None:
@@ -160,7 +183,6 @@ class SystemProxy:
         for schema in ("org.gnome.system.proxy.http", "org.gnome.system.proxy.https"):
             self._gsettings(schema, "host", "'127.0.0.1'")
             self._gsettings(schema, "port", str(port))
-        # Keep SOCKS populated as well for applications that prefer it.
         self._gsettings("org.gnome.system.proxy.socks", "host", "'127.0.0.1'")
         self._gsettings("org.gnome.system.proxy.socks", "port", str(self.config.profile.local_port))
         self.config.mode = "global"
