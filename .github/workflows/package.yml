@@ -1,0 +1,19 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build deb
+        run: bash scripts/build-deb.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shadowsocksx-ng-linux-deb
+          path: dist/*.deb
