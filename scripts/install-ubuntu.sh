@@ -34,3 +34,11 @@ echo
 echo "Installed successfully."
 echo "Run: $HOME/.local/bin/ssx-ng-linux"
 echo "simple-obfs: install obfs-local separately if your server requires it."
+
+if systemctl is-active --quiet shadowsocks-libev-local@config.service 2>/dev/null; then
+  echo
+  echo "NOTICE: shadowsocks-libev-local@config.service is already running."
+  echo "It may occupy port 1080 and conflict with the desktop client."
+  echo "When you are ready to use the desktop client, stop it with:"
+  echo "  sudo systemctl disable --now shadowsocks-libev-local@config.service"
+fi
