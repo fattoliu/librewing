@@ -45,10 +45,9 @@ def parse_gfwlist(raw: bytes) -> set[str]:
 
 
 def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
-    request = urllib.request.Request(config.gfwlist_url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.1"})
+    request = urllib.request.Request(config.gfwlist_url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         raw = response.read()
-    # Validate before replacing the last-known-good copy.
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
@@ -97,18 +96,17 @@ def build_pac(config: AppConfig) -> str:
     proxy_domains = load_gfwlist_domains(config) | custom_proxy
     direct_tests = _domain_tests(custom_direct)
     proxy_tests = _domain_tests(proxy_domains)
-    port = config.profile.local_port
+    proxy = f"PROXY 127.0.0.1:{config.http_port}"
     return f'''function FindProxyForURL(url, host) {{
     host = host.toLowerCase();
     if (isPlainHostName(host) || shExpMatch(host, "localhost")) {{
         return "DIRECT";
     }}
-    // User DIRECT rules have the highest precedence.
     if ({direct_tests}) {{
         return "DIRECT";
     }}
     if ({proxy_tests}) {{
-        return "SOCKS5 127.0.0.1:{port}; SOCKS 127.0.0.1:{port}";
+        return "{proxy}; DIRECT";
     }}
     return "DIRECT";
 }}
