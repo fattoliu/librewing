@@ -35,3 +35,14 @@ def test_discover_plugins(monkeypatch):
     assert result[0].available is True
     assert result[0].path.endswith("obfs-local")
     assert result[1].available is False
+    assert bool(result) is True
+    assert result.available_count == 1
+    assert result.items() == [("obfs-local", "/usr/local/bin/obfs-local")]
+
+
+def test_discover_plugins_false_when_none_available(monkeypatch):
+    monkeypatch.setattr(plugins.shutil, "which", lambda _name: None)
+    result = plugins.discover_plugins(("obfs-local", "v2ray-plugin"))
+    assert bool(result) is False
+    assert result.available_count == 0
+    assert result.items() == []
