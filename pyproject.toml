@@ -21,6 +21,7 @@ Repository = "https://github.com/fattoliu/shadowsocksx-ng-linux"
 
 [project.scripts]
 ssx-ng-linux = "ssxng.app:main"
+ssx-ng-tool = "ssxng.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["ssxng*"]
