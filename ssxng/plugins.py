@@ -20,8 +20,27 @@ class PluginInfo:
     available: bool
 
 
-def discover_plugins(names: tuple[str, ...] = KNOWN_PLUGINS) -> list[PluginInfo]:
-    result: list[PluginInfo] = []
+class PluginList(list[PluginInfo]):
+    """Plugin discovery result with a small mapping-style compatibility API.
+
+    Iteration/indexing still exposes every known plugin, while ``items()`` and
+    truth testing only consider installed plugins. This keeps diagnostics useful
+    without forcing UI callers to duplicate filtering logic.
+    """
+
+    def items(self) -> list[tuple[str, str]]:
+        return [(plugin.name, plugin.path) for plugin in self if plugin.available]
+
+    def __bool__(self) -> bool:
+        return any(plugin.available for plugin in self)
+
+    @property
+    def available_count(self) -> int:
+        return sum(1 for plugin in self if plugin.available)
+
+
+def discover_plugins(names: tuple[str, ...] = KNOWN_PLUGINS) -> PluginList:
+    result = PluginList()
     for name in names:
         path = shutil.which(name)
         result.append(PluginInfo(name=name, path=path or "", available=bool(path)))
