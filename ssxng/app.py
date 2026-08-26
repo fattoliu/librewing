@@ -11,10 +11,16 @@ gi.require_version("AyatanaAppIndicator3", "0.1")
 from gi.repository import AyatanaAppIndicator3 as AppIndicator3  # noqa: E402
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
-from .config import AppConfig, ServerProfile
+from . import __version__
+from .autostart import is_enabled as autostart_enabled
+from .autostart import set_enabled as set_autostart
+from .config import AppConfig, LOG_FILE, ServerProfile
 from .core import HttpProxyCore, ShadowsocksCore, SystemProxy
 from .diagnostics import tcp_latency, test_http_proxy
+from .importer import import_profiles_from_text
+from .logs import clear_log, tail_log
 from .pac import PacServer, load_gfwlist_domains, update_gfwlist
+from .plugins import discover_plugins
 from .share import build_ss_url, parse_ss_url
 
 APP_ID = "com.fattoliu.shadowsocksxnglinux"
@@ -24,7 +30,7 @@ class ServerDialog(Gtk.Dialog):
     def __init__(self, parent: Gtk.Window | None, profile: ServerProfile):
         super().__init__(title="Server Profile", transient_for=parent, flags=0)
         self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
-        self.set_default_size(480, 380)
+        self.set_default_size(500, 400)
         grid = Gtk.Grid(column_spacing=12, row_spacing=10, margin=16)
         self.get_content_area().add(grid)
         self.entries: dict[str, Gtk.Entry] = {}
@@ -66,7 +72,7 @@ class RulesDialog(Gtk.Dialog):
         super().__init__(title="PAC Rules", flags=0)
         self.config = config
         self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
-        self.set_default_size(660, 520)
+        self.set_default_size(680, 540)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=16)
         self.get_content_area().add(box)
         self.gfw_enabled = Gtk.CheckButton(label="Use GFWList")
@@ -79,7 +85,7 @@ class RulesDialog(Gtk.Dialog):
         box.pack_start(row, False, False, 0)
         box.pack_start(
             Gtk.Label(
-                label="One rule per line. domain.com = proxy, @@domain.com = direct, # = comment",
+                label="One rule per line. Adblock/GFWList syntax is supported; @@ rules are DIRECT.",
                 halign=Gtk.Align.START,
             ),
             False,
@@ -105,6 +111,44 @@ class RulesDialog(Gtk.Dialog):
         self.config.save()
 
 
+class PreferencesDialog(Gtk.Dialog):
+    def __init__(self, config: AppConfig):
+        super().__init__(title="Preferences", flags=0)
+        self.config = config
+        self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        self.set_default_size(540, 300)
+        grid = Gtk.Grid(column_spacing=12, row_spacing=12, margin=18)
+        self.get_content_area().add(grid)
+
+        self.autostart = Gtk.CheckButton(label="Start ShadowsocksX-NG Linux after login")
+        self.autostart.set_active(autostart_enabled())
+        grid.attach(self.autostart, 0, 0, 2, 1)
+
+        grid.attach(Gtk.Label(label="PAC server port", halign=Gtk.Align.START), 0, 1, 1, 1)
+        self.pac_port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
+        self.pac_port.set_value(config.pac_port)
+        grid.attach(self.pac_port, 1, 1, 1, 1)
+
+        grid.attach(Gtk.Label(label="HTTP proxy port", halign=Gtk.Align.START), 0, 2, 1, 1)
+        self.http_port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
+        self.http_port.set_value(config.http_port)
+        grid.attach(self.http_port, 1, 2, 1, 1)
+
+        grid.attach(Gtk.Label(label="ABP PAC engine URL", halign=Gtk.Align.START), 0, 3, 1, 1)
+        self.abp_url = Gtk.Entry(text=config.abp_template_url)
+        self.abp_url.set_hexpand(True)
+        grid.attach(self.abp_url, 1, 3, 1, 1)
+        self.show_all()
+
+    def values(self) -> tuple[int, int, str, bool]:
+        return (
+            self.pac_port.get_value_as_int(),
+            self.http_port.get_value_as_int(),
+            self.abp_url.get_text().strip(),
+            self.autostart.get_active(),
+        )
+
+
 class TextInputDialog(Gtk.Dialog):
     def __init__(self, title: str, label: str):
         super().__init__(title=title, flags=0)
@@ -116,6 +160,30 @@ class TextInputDialog(Gtk.Dialog):
         box.pack_start(self.entry, False, False, 0)
         self.get_content_area().add(box)
         self.show_all()
+
+
+class LogDialog(Gtk.Dialog):
+    def __init__(self):
+        super().__init__(title="Proxy Logs", flags=0)
+        self.add_buttons("Clear", 1001, Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+        self.set_default_size(820, 520)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=12)
+        self.get_content_area().add(box)
+        label = Gtk.Label(label=str(LOG_FILE), halign=Gtk.Align.START)
+        label.set_selectable(True)
+        box.pack_start(label, False, False, 0)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_hexpand(True)
+        scroller.set_vexpand(True)
+        self.text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        scroller.add(self.text)
+        box.pack_start(scroller, True, True, 0)
+        self.refresh()
+        self.show_all()
+
+    def refresh(self) -> None:
+        value = tail_log(500) or "No proxy log entries yet."
+        self.text.get_buffer().set_text(value)
 
 
 class TrayApp:
@@ -135,7 +203,8 @@ class TrayApp:
         if self.config.profile.server:
             try:
                 self.core.start()
-                self.http.start()
+                if self.config.mode in ("pac", "global"):
+                    self.http.start()
                 self.restore_mode()
             except Exception:
                 pass
@@ -176,6 +245,7 @@ class TrayApp:
             ("Edit Current Server…", self.on_edit_server),
             ("Delete Current Server…", self.on_delete_server),
             ("Import ss:// URL…", self.on_import_url),
+            ("Import from Clipboard", self.on_import_clipboard),
             ("Copy Current ss:// URL", self.on_copy_url),
         ]:
             item = Gtk.MenuItem(label=label)
@@ -186,12 +256,13 @@ class TrayApp:
 
         rules_item = Gtk.MenuItem(label="PAC Rules")
         rules = Gtk.Menu()
-        edit_rules = Gtk.MenuItem(label="Edit User Rules…")
-        edit_rules.connect("activate", self.on_edit_rules)
-        rules.append(edit_rules)
-        update_rules = Gtk.MenuItem(label="Update GFWList")
-        update_rules.connect("activate", self.on_update_gfwlist)
-        rules.append(update_rules)
+        for label, callback in [
+            ("Edit User Rules…", self.on_edit_rules),
+            ("Update GFWList", self.on_update_gfwlist),
+        ]:
+            item = Gtk.MenuItem(label=label)
+            item.connect("activate", callback)
+            rules.append(item)
         info = Gtk.MenuItem(label=f"GFWList: {len(load_gfwlist_domains(self.config))} domains")
         info.set_sensitive(False)
         rules.append(info)
@@ -216,7 +287,10 @@ class TrayApp:
             ("Test Server Latency", self.on_test_latency),
             ("Test Proxy Connection", self.on_test_proxy),
             ("Restart Proxy Core", self.on_restart),
+            ("Installed Plugins…", self.on_plugins),
+            ("View Logs…", self.on_logs),
             ("Diagnostics…", self.on_diagnostics),
+            ("Preferences…", self.on_preferences),
             ("About", self.on_about),
             ("Quit", self.on_quit),
         ]:
@@ -243,6 +317,10 @@ class TrayApp:
             return
         try:
             {"pac": self.proxy.pac_mode, "global": self.proxy.global_mode, "manual": self.proxy.manual, "off": self.proxy.off}[mode]()
+            if mode not in ("pac", "global"):
+                self.http.stop()
+            if mode == "off":
+                self.core.stop()
         except Exception as exc:
             self.alert(f"Failed to change proxy mode:\n{exc}")
         self.rebuild_menu()
@@ -252,10 +330,13 @@ class TrayApp:
             return
         self.config.active_profile = index
         self.config.save()
-        if self.core.running():
-            self.core.restart()
-        if self.http.running():
-            self.http.restart()
+        try:
+            if self.core.running():
+                self.core.restart()
+            if self.http.running():
+                self.http.restart()
+        except Exception as exc:
+            self.alert(str(exc))
         self.rebuild_menu()
 
     def edit_profile(self, index: int, is_new: bool = False) -> None:
@@ -307,18 +388,35 @@ class TrayApp:
             self.http.restart()
         self.rebuild_menu()
 
+    def _append_imported(self, profiles: list[ServerProfile]) -> int:
+        if not profiles:
+            return 0
+        self.config.profiles.extend(profiles)
+        self.config.active_profile = len(self.config.profiles) - len(profiles)
+        self.config.save()
+        self.rebuild_menu()
+        return len(profiles)
+
     def on_import_url(self, _item) -> None:
         dialog = TextInputDialog("Import Server", "Paste an ss:// URL")
         if dialog.run() == Gtk.ResponseType.OK:
             try:
                 profile = parse_ss_url(dialog.entry.get_text())
-                self.config.profiles.append(profile)
-                self.config.active_profile = len(self.config.profiles) - 1
-                self.config.save()
+                count = self._append_imported([profile])
+                self.alert(f"Imported {count} server.", Gtk.MessageType.INFO)
             except Exception as exc:
                 self.alert(f"Import failed:\n{exc}")
         dialog.destroy()
-        self.rebuild_menu()
+
+    def on_import_clipboard(self, _item) -> None:
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        text = clipboard.wait_for_text() or ""
+        profiles = import_profiles_from_text(text, self.config.profiles)
+        count = self._append_imported(profiles)
+        if count:
+            self.alert(f"Imported {count} server{'s' if count != 1 else ''} from clipboard.", Gtk.MessageType.INFO)
+        else:
+            self.alert("No new valid ss:// server links found in the clipboard.", Gtk.MessageType.INFO)
 
     def on_copy_url(self, _item) -> None:
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
@@ -383,13 +481,61 @@ class TrayApp:
     def on_restart(self, _item) -> None:
         try:
             self.core.restart()
-            self.http.restart()
+            if self.config.mode in ("pac", "global"):
+                self.http.restart()
         except Exception as exc:
             self.alert(str(exc))
         self.rebuild_menu()
 
+    def on_plugins(self, _item) -> None:
+        plugins = discover_plugins()
+        if not plugins:
+            message = "No known SIP003 plugins were found in PATH."
+        else:
+            message = "Installed SIP003 plugins:\n\n" + "\n".join(f"{name}: {path}" for name, path in plugins.items())
+        self.alert(message, Gtk.MessageType.INFO)
+
+    def on_logs(self, _item) -> None:
+        dialog = LogDialog()
+        while True:
+            response = dialog.run()
+            if response == 1001:
+                clear_log()
+                dialog.refresh()
+                continue
+            break
+        dialog.destroy()
+
+    def on_preferences(self, _item) -> None:
+        dialog = PreferencesDialog(self.config)
+        if dialog.run() == Gtk.ResponseType.OK:
+            old_pac = self.config.pac_port
+            old_http = self.config.http_port
+            pac_port, http_port, abp_url, auto = dialog.values()
+            if pac_port == http_port:
+                self.alert("PAC and HTTP proxy ports must be different.")
+            else:
+                self.config.pac_port = pac_port
+                self.config.http_port = http_port
+                self.config.abp_template_url = abp_url
+                self.config.autostart = auto
+                self.config.save()
+                set_autostart(auto, shutil.which("ssx-ng-linux"))
+                try:
+                    if old_pac != pac_port:
+                        self.pac.stop()
+                        self.pac.start()
+                    if old_http != http_port and self.http.running():
+                        self.http.restart()
+                    self.restore_mode()
+                except Exception as exc:
+                    self.alert(f"Preferences saved, but applying them failed:\n{exc}")
+        dialog.destroy()
+        self.rebuild_menu()
+
     def on_diagnostics(self, _item) -> None:
         p = self.config.profile
+        plugins = discover_plugins()
         self.alert(
             f"Mode: {self.config.mode}\n"
             f"Server: {p.name} ({p.server}:{p.server_port})\n"
@@ -399,13 +545,17 @@ class TrayApp:
             f"HTTP proxy: 127.0.0.1:{self.config.http_port}\n"
             f"PAC: http://127.0.0.1:{self.config.pac_port}/proxy.pac\n"
             f"GFWList domains: {len(load_gfwlist_domains(self.config))}\n"
-            f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}",
+            f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}\n"
+            f"Autostart: {'enabled' if autostart_enabled() else 'disabled'}\n"
+            f"Plugins found: {len(plugins)}\n"
+            f"Log: {LOG_FILE}",
             Gtk.MessageType.INFO,
         )
 
     def on_about(self, _item) -> None:
-        dialog = Gtk.AboutDialog(program_name="ShadowsocksX-NG Linux", version="0.2.0")
+        dialog = Gtk.AboutDialog(program_name="ShadowsocksX-NG Linux", version=__version__)
         dialog.set_comments("A practical Shadowsocks desktop client for Linux/Ubuntu")
+        dialog.set_website("https://github.com/fattoliu/shadowsocksx-ng-linux")
         dialog.set_license_type(Gtk.License.GPL_3_0)
         dialog.run()
         dialog.destroy()
