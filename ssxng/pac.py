@@ -1,16 +1,43 @@
 from __future__ import annotations
 
 import base64
+import json
 import re
 import threading
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlparse
 
-from .config import AppConfig, GFWLIST_FILE
+from .config import ABP_TEMPLATE_FILE, AppConfig, GFWLIST_FILE
 
 DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
+UPSTREAM_PROXY_DECLARATION = (
+    'var proxy = "SOCKS5 __SOCKS5ADDR__:__SOCKS5PORT__; '
+    'SOCKS __SOCKS5ADDR__:__SOCKS5PORT__; DIRECT;";'
+)
+
+
+def _download(url: str, timeout: int = 20) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_bytes(data)
+    temp.replace(path)
+
+
+def decode_gfwlist(raw: bytes) -> str:
+    compact = b"".join(raw.split())
+    try:
+        return base64.b64decode(compact + b"=" * (-len(compact) % 4)).decode("utf-8", "ignore")
+    except Exception:
+        return raw.decode("utf-8", "ignore")
 
 
 def _domain_from_rule(rule: str) -> str | None:
@@ -31,28 +58,69 @@ def _domain_from_rule(rule: str) -> str | None:
 
 
 def parse_gfwlist(raw: bytes) -> set[str]:
-    compact = b"".join(raw.split())
-    try:
-        decoded = base64.b64decode(compact + b"=" * (-len(compact) % 4)).decode("utf-8", "ignore")
-    except Exception:
-        decoded = raw.decode("utf-8", "ignore")
+    """Fast domain-only view used for counts/fallback PAC generation."""
     domains: set[str] = set()
-    for line in decoded.splitlines():
+    for line in decode_gfwlist(raw).splitlines():
         domain = _domain_from_rule(line)
         if domain:
             domains.add(domain)
     return domains
 
 
+def _user_rule_lines(config: AppConfig) -> list[str]:
+    result: list[str] = []
+    for line in config.custom_rules:
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith("!") or line.startswith("["):
+            continue
+        result.append(line)
+    return result
+
+
+def merged_abp_rules(config: AppConfig) -> list[str]:
+    """Match ShadowsocksX-NG's PACUtils.swift rule precedence as closely as possible.
+
+    User rules are prepended. A GFWList rule is dropped when the user supplied the
+    same rule with leading @/| markers removed. This preserves complete ABP syntax
+    such as regexes, whitelist rules, URL anchors and rule options rather than
+    collapsing the list to domains.
+    """
+    user_rules = _user_rule_lines(config)
+    upstream: list[str] = []
+    if config.gfwlist_enabled and GFWLIST_FILE.exists():
+        upstream = decode_gfwlist(GFWLIST_FILE.read_bytes()).splitlines()
+
+    user_set = set(user_rules)
+    merged = list(user_rules)
+    for line in upstream:
+        line = line.strip()
+        if not line or line[0] in "![":
+            continue
+        index = 0
+        while index < len(line) and line[index] in "@|":
+            index += 1
+        comparable = line if index == 0 else line[index:]
+        if line in user_set or comparable in user_set:
+            continue
+        merged.append(line)
+    return merged
+
+
 def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
-    request = urllib.request.Request(config.gfwlist_url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        raw = response.read()
+    raw = _download(config.gfwlist_url, timeout=timeout)
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
-    GFWLIST_FILE.parent.mkdir(parents=True, exist_ok=True)
-    GFWLIST_FILE.write_bytes(raw)
+
+    # ShadowsocksX-NG uses its mature Adblock Plus PAC engine. Cache the same
+    # upstream template so Linux gets matching rule semantics without rewriting it.
+    template = _download(config.abp_template_url, timeout=timeout)
+    template_text = template.decode("utf-8", "strict")
+    if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
+        raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
+
+    _atomic_write(GFWLIST_FILE, raw)
+    _atomic_write(ABP_TEMPLATE_FILE, template)
     config.gfwlist_updated_at = datetime.now(timezone.utc).isoformat()
     config.save()
     return len(domains)
@@ -72,7 +140,7 @@ def _parse_custom_rules(rules: list[str]) -> tuple[set[str], set[str]]:
     direct: set[str] = set()
     for value in rules:
         value = value.strip()
-        if not value or value.startswith("#"):
+        if not value or value.startswith("#") or value.startswith("!"):
             continue
         target = direct if value.startswith("@@") else proxy
         if value.startswith("@@"):
@@ -91,7 +159,7 @@ def _domain_tests(domains: set[str]) -> str:
     )
 
 
-def build_pac(config: AppConfig) -> str:
+def _build_fallback_pac(config: AppConfig) -> str:
     custom_proxy, custom_direct = _parse_custom_rules(config.custom_rules)
     proxy_domains = load_gfwlist_domains(config) | custom_proxy
     direct_tests = _domain_tests(custom_direct)
@@ -111,6 +179,25 @@ def build_pac(config: AppConfig) -> str:
     return "DIRECT";
 }}
 '''
+
+
+def build_pac(config: AppConfig) -> str:
+    if not ABP_TEMPLATE_FILE.exists():
+        return _build_fallback_pac(config)
+
+    try:
+        template = ABP_TEMPLATE_FILE.read_text(encoding="utf-8")
+        rules_json = json.dumps(merged_abp_rules(config), ensure_ascii=False, separators=(",", ":"))
+        proxy_declaration = f'var proxy = "PROXY 127.0.0.1:{config.http_port}; DIRECT;";'
+        pac = template.replace("__RULES__", rules_json)
+        pac = pac.replace(UPSTREAM_PROXY_DECLARATION, proxy_declaration)
+        # Keep compatibility if an upstream template changes the declaration but
+        # retains the standard placeholders.
+        pac = pac.replace("__SOCKS5ADDR__", "127.0.0.1")
+        pac = pac.replace("__SOCKS5PORT__", str(config.profile.local_port))
+        return pac
+    except (OSError, UnicodeError, ValueError):
+        return _build_fallback_pac(config)
 
 
 class PacServer:
