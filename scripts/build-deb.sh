@@ -42,7 +42,7 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu
-Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, privoxy, libayatana-appindicator3-1
+Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, privoxy, libayatana-appindicator3-1, qrencode, zbar-tools
 Description: Shadowsocks desktop client for Linux/Ubuntu
  Tray-first Shadowsocks client with PAC, GFWList, SIP003 plugins and GNOME proxy integration.
 EOF
