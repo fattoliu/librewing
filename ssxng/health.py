@@ -20,60 +20,69 @@ def _command(name: str) -> CheckResult:
     return CheckResult(name, bool(path), path or "not installed")
 
 
-def _port_free(name: str, port: int) -> CheckResult:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def _probe_host(host: str) -> str:
+    value = (host or "127.0.0.1").strip()
+    if value in ("0.0.0.0", "localhost"):
+        return "127.0.0.1"
+    if value == "::":
+        return "::1"
+    return value
+
+
+def _port_free(name: str, port: int, host: str = "127.0.0.1") -> CheckResult:
+    bind_host = (host or "127.0.0.1").strip()
+    family = socket.AF_INET6 if ":" in bind_host else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_STREAM)
     try:
-        sock.bind(("127.0.0.1", int(port)))
-        return CheckResult(name, True, f"127.0.0.1:{port} available")
+        sock.bind((bind_host, int(port)))
+        return CheckResult(name, True, f"{bind_host}:{port} available")
     except OSError as exc:
-        return CheckResult(name, False, f"127.0.0.1:{port} unavailable: {exc}")
+        return CheckResult(name, False, f"{bind_host}:{port} unavailable: {exc}")
     finally:
         sock.close()
 
 
-def _socks_port(name: str, port: int) -> CheckResult:
-    """Treat a free SOCKS port or a live SOCKS5 listener as healthy.
-
-    `ssx-ng-tool health` can be run either before the desktop client starts or
-    while it is already running. A simple bind check incorrectly reports the
-    latter as a conflict, so probe the SOCKS5 greeting when the port is busy.
-    """
-    free = _port_free(name, port)
+def _socks_port(name: str, port: int, host: str = "127.0.0.1") -> CheckResult:
+    """Treat a free SOCKS port or a live SOCKS5 listener as healthy."""
+    free = _port_free(name, port, host)
     if free.ok:
         return free
 
+    target = _probe_host(host)
     try:
-        with socket.create_connection(("127.0.0.1", int(port)), timeout=0.5) as sock:
+        with socket.create_connection((target, int(port)), timeout=0.5) as sock:
             sock.settimeout(0.5)
             sock.sendall(b"\x05\x01\x00")
             reply = sock.recv(2)
             if reply == b"\x05\x00":
-                return CheckResult(name, True, f"127.0.0.1:{port} listening (SOCKS5)")
+                return CheckResult(name, True, f"{host}:{port} listening (SOCKS5)")
     except OSError:
         pass
 
     return free
 
 
-def _service_port(name: str, port: int) -> CheckResult:
-    """Treat a free port or an already-listening local service as healthy."""
-    free = _port_free(name, port)
+def _service_port(name: str, port: int, host: str = "127.0.0.1") -> CheckResult:
+    """Treat a free port or an already-listening configured service as healthy."""
+    free = _port_free(name, port, host)
     if free.ok:
         return free
+    target = _probe_host(host)
     try:
-        with socket.create_connection(("127.0.0.1", int(port)), timeout=0.3):
-            return CheckResult(name, True, f"127.0.0.1:{port} listening")
+        with socket.create_connection((target, int(port)), timeout=0.3):
+            return CheckResult(name, True, f"{host}:{port} listening")
     except OSError:
         return free
 
 
 def run_health_checks(config: AppConfig) -> list[CheckResult]:
+    pac_host = "127.0.0.1" if config.pac_bind_localhost else "0.0.0.0"
     results = [
         _command("ss-local"),
         _command("gsettings"),
-        _socks_port("SOCKS port", config.profile.local_port),
-        _service_port("HTTP proxy port", config.http_port),
-        _service_port("PAC port", config.pac_port),
+        _socks_port("SOCKS port", config.profile.local_port, config.socks_listen_address),
+        _service_port("HTTP proxy port", config.http_port, config.http_listen_address),
+        _service_port("PAC port", config.pac_port, pac_host),
     ]
     if config.profile.plugin:
         try:
