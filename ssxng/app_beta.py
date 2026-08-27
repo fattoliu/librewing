@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import shutil
 import signal
+import subprocess
 import sys
+import tempfile
+import webbrowser
+from datetime import datetime
+from pathlib import Path
 
 from . import app as legacy_app
 from .i18n import tr
@@ -68,7 +74,6 @@ def _update_indicator_icon(self) -> None:
         self.indicator.set_icon_theme_path(TRAY_ICON_THEME_PATH)
         self.indicator.set_icon_full(icon_name, f"Shadowsocks {mode}")
     except Exception:
-        # A visual failure must never affect proxy operation.
         pass
 
 
@@ -126,7 +131,6 @@ def _rebuild_menu(self) -> None:
     menu.append(_menu_item(tr("External PAC Auto Mode"), sensitive=False))
     menu.append(Gtk.SeparatorMenuItem())
 
-    # Native Gtk submenu: a separate floating cascade, matching macOS.
     servers_item = _menu_item(f"{tr('Servers')} - {self.config.profile.name}")
     servers = Gtk.Menu()
     servers.append(_menu_item(tr("Server Settings…"), self.on_edit_server))
@@ -143,7 +147,8 @@ def _rebuild_menu(self) -> None:
 
     menu.append(_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
     menu.append(_menu_item(tr("Import Server URL…"), self.on_import_url))
-    menu.append(_menu_item(tr("Share Server Configuration…"), self.on_copy_url))
+    menu.append(_menu_item(tr("Import Server URLs From Clipboard"), self.on_import_clipboard))
+    menu.append(_menu_item(tr("Share Server Configuration…"), self.on_share_server))
     menu.append(Gtk.SeparatorMenuItem())
 
     menu.append(_menu_item(tr("Preferences…"), self.on_preferences))
@@ -153,7 +158,7 @@ def _rebuild_menu(self) -> None:
     menu.append(Gtk.SeparatorMenuItem())
 
     menu.append(_menu_item(tr("View Logs…"), self.on_logs))
-    menu.append(_menu_item(tr("Export Diagnostics…"), self.on_diagnostics))
+    menu.append(_menu_item(tr("Export Diagnostics…"), self.on_export_diagnostics))
     menu.append(_menu_item(tr("Check for Updates…"), self.on_check_updates))
     menu.append(_menu_item(tr("Help"), self.on_help))
     menu.append(_menu_item(tr("About"), self.on_about))
@@ -174,36 +179,113 @@ def _scan_screen_qr(self, _item) -> None:
     profiles = legacy_app.import_profiles_from_text("\n".join(payloads), self.config.profiles)
     count = self._append_imported(profiles)
     if count:
-        self.alert(f"Imported {count} server{'s' if count != 1 else ''} from screen QR code.", legacy_app.Gtk.MessageType.INFO)
+        self.alert(tr("Imported {count} server(s).", count=count), legacy_app.Gtk.MessageType.INFO)
     elif payloads:
         self.alert("QR code found, but it did not contain a new valid ss:// server URL.", legacy_app.Gtk.MessageType.INFO)
     else:
-        self.alert("No QR code was found on the screen.", legacy_app.Gtk.MessageType.INFO)
+        self.alert(tr("No Shadowsocks QR code was found on the screen."), legacy_app.Gtk.MessageType.INFO)
 
 
 def _copy_terminal_proxy_command(self, _item) -> None:
     port = self.config.http_port
     command = (
         f"export http_proxy=http://127.0.0.1:{port}; "
-        f"export https_proxy=http://127.0.0.1:{port}"
+        f"export https_proxy=http://127.0.0.1:{port};"
     )
     clipboard = legacy_app.Gtk.Clipboard.get(legacy_app.Gdk.SELECTION_CLIPBOARD)
     clipboard.set_text(command, -1)
     clipboard.store()
-    self.alert("Terminal proxy command copied to clipboard.", legacy_app.Gtk.MessageType.INFO)
+    self.alert(tr("Terminal proxy command copied to clipboard."), legacy_app.Gtk.MessageType.INFO)
+
+
+def _on_share_server(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    url = legacy_app.build_ss_url(self.config.profile)
+    dialog = Gtk.Dialog(title=tr("Share Server Configuration…"), flags=0)
+    dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE, "Copy URL", 1001)
+    dialog.set_default_size(460, 500)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin=18)
+    dialog.get_content_area().add(box)
+    box.pack_start(Gtk.Label(label=self.config.profile.name), False, False, 0)
+
+    qrencode = shutil.which("qrencode")
+    qr_path: Path | None = None
+    try:
+        if qrencode:
+            tmp = tempfile.NamedTemporaryFile(prefix="ssxng-share-", suffix=".png", delete=False)
+            qr_path = Path(tmp.name)
+            tmp.close()
+            subprocess.run([qrencode, "-o", str(qr_path), "-s", "7", "-m", "2", url], check=True)
+            box.pack_start(Gtk.Image.new_from_file(str(qr_path)), True, True, 0)
+
+        entry = Gtk.Entry(text=url)
+        entry.set_editable(False)
+        entry.set_hexpand(True)
+        box.pack_start(entry, False, False, 0)
+        dialog.show_all()
+        while True:
+            response = dialog.run()
+            if response == 1001:
+                clipboard = Gtk.Clipboard.get(legacy_app.Gdk.SELECTION_CLIPBOARD)
+                clipboard.set_text(url, -1)
+                clipboard.store()
+                continue
+            break
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        dialog.destroy()
+        if qr_path is not None:
+            try:
+                qr_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def _diagnostics_text(self) -> str:
+    p = self.config.profile
+    plugins = legacy_app.discover_plugins()
+    return (
+        "ShadowsocksX-NG Linux diagnostics\n"
+        f"Generated: {datetime.now().astimezone().isoformat()}\n\n"
+        f"Mode: {self.config.mode}\n"
+        f"Server: {p.name} ({p.server}:{p.server_port})\n"
+        f"ss-local: {'running' if self.core.running() else 'stopped'}\n"
+        f"SOCKS5: 127.0.0.1:{p.local_port}\n"
+        f"HTTP bridge: {'running' if self.http.running() else 'stopped'}\n"
+        f"HTTP proxy: 127.0.0.1:{self.config.http_port}\n"
+        f"PAC: http://127.0.0.1:{self.config.pac_port}/proxy.pac\n"
+        f"GFWList domains: {len(legacy_app.load_gfwlist_domains(self.config))}\n"
+        f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}\n"
+        f"Autostart: {'enabled' if legacy_app.autostart_enabled() else 'disabled'}\n"
+        f"Plugins found: {len(plugins)}\n"
+        f"Log: {legacy_app.LOG_FILE}\n"
+    )
+
+
+def _on_export_diagnostics(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    dialog = Gtk.FileChooserDialog(title=tr("Save Diagnosis to File"), action=Gtk.FileChooserAction.SAVE)
+    dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+    dialog.set_do_overwrite_confirmation(True)
+    dialog.set_current_name(f"ShadowsocksX-NG_diagnose_{datetime.now():%Y%m%d_%H%M%S}.txt")
+    try:
+        if dialog.run() == Gtk.ResponseType.OK:
+            Path(dialog.get_filename()).write_text(self.diagnostics_text(), encoding="utf-8")
+            self.alert(tr("Diagnostics exported."), Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        dialog.destroy()
 
 
 def _on_check_updates(self, _item) -> None:
-    self.alert("Update checking is not available yet.", legacy_app.Gtk.MessageType.INFO)
+    webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux/releases")
 
 
 def _on_help(self, _item) -> None:
-    self.alert(
-        "ShadowsocksX-NG Linux\n\n"
-        "Choose a proxy mode, select a server from the Servers submenu, "
-        "and use View Logs or Export Diagnostics when troubleshooting.",
-        legacy_app.Gtk.MessageType.INFO,
-    )
+    if not webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux"):
+        self.alert(tr("Help text"), legacy_app.Gtk.MessageType.INFO)
 
 
 def _shutdown_runtime(self, *, quit_main: bool = True) -> None:
@@ -257,6 +339,9 @@ def main() -> int:
     legacy_app.TrayApp.rebuild_menu = _rebuild_menu
     legacy_app.TrayApp.on_scan_screen_qr = _scan_screen_qr
     legacy_app.TrayApp.on_copy_terminal_proxy_command = _copy_terminal_proxy_command
+    legacy_app.TrayApp.on_share_server = _on_share_server
+    legacy_app.TrayApp.diagnostics_text = _diagnostics_text
+    legacy_app.TrayApp.on_export_diagnostics = _on_export_diagnostics
     legacy_app.TrayApp.on_check_updates = _on_check_updates
     legacy_app.TrayApp.on_help = _on_help
     legacy_app.TrayApp.shutdown_runtime = _shutdown_runtime
@@ -266,9 +351,6 @@ def main() -> int:
     try:
         install_dialog_styles()
         app = legacy_app.TrayApp()
-        # TrayApp builds its first menu before it starts ss-local. Rebuild once
-        # after construction so PAC/Global/Manual is reflected immediately on
-        # first launch instead of showing the neutral/off icon until a switch.
         app.rebuild_menu()
         _install_signal_handlers(app)
         legacy_app.Gtk.main()
