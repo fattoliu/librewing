@@ -7,8 +7,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
-from .config import AppConfig
-from .i18n import tr
+from .config import AppConfig  # noqa: E402
+from .i18n import tr  # noqa: E402
 
 
 def _row(grid: Gtk.Grid, row: int, label: str, widget: Gtk.Widget) -> None:
