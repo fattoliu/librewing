@@ -5,6 +5,7 @@ import sys
 
 from . import app as legacy_app
 from .server_manager import ServerManagerDialog
+from .ui import install_dialog_styles
 
 
 def _open_server_manager(self, add_new: bool = False) -> None:
@@ -104,6 +105,7 @@ def main() -> int:
 
     app = None
     try:
+        install_dialog_styles()
         app = legacy_app.TrayApp()
         _install_signal_handlers(app)
         legacy_app.Gtk.main()
