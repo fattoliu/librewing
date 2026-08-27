@@ -12,6 +12,7 @@ from .plugins import resolve_plugin
 APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
+CORE_PID_FILE = APP_DIR / "ss-local.pid"
 GFWLIST_FILE = APP_DIR / "gfwlist.txt"
 ABP_TEMPLATE_FILE = APP_DIR / "abp.js"
 LOG_FILE = APP_DIR / "app.log"
