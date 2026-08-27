@@ -20,6 +20,7 @@ _ZH_CN = {
     "Server Settings…": "服务器设置...",
     "Scan QR Code on Screen": "扫描屏幕上的二维码",
     "Import Server URL…": "导入服务器URL...",
+    "Import Server URLs From Clipboard": "从剪贴板导入服务器配置链接",
     "Share Server Configuration…": "分享服务器配置...",
     "Preferences…": "偏好设置...",
     "Copy Terminal Proxy Command": "复制终端代理命令",
@@ -31,6 +32,16 @@ _ZH_CN = {
     "Help": "帮助",
     "About": "关于",
     "Quit": "退出",
+    "Terminal proxy command copied to clipboard.": "终端代理命令已复制至剪贴板。",
+    "Current server URL copied to clipboard.": "当前服务器 URL 已复制至剪贴板。",
+    "No new valid ss:// server links found in the clipboard.": "剪贴板中没有找到新的有效 ss:// 服务器链接。",
+    "No Shadowsocks QR code was found on the screen.": "屏幕上没有找到有效的 Shadowsocks 二维码。",
+    "Screen capture is not available. Install gnome-screenshot first.": "无法截取屏幕，请先安装 gnome-screenshot。",
+    "QR scanning requires zbarimg (zbar-tools).": "二维码扫描需要 zbarimg（zbar-tools）。",
+    "Imported {count} server(s).": "已导入 {count} 个服务器配置。",
+    "Diagnostics exported.": "诊断信息已导出。",
+    "Save Diagnosis to File": "保存诊断信息到文件",
+    "Help text": "选择代理模式和服务器即可使用。出现问题时可查看日志或导出诊断信息。",
 }
 
 _ZH_TW = {
@@ -46,6 +57,7 @@ _ZH_TW = {
     "Server Settings…": "伺服器設定…",
     "Scan QR Code on Screen": "掃描螢幕上的 QR Code",
     "Import Server URL…": "匯入伺服器 URL…",
+    "Import Server URLs From Clipboard": "從剪貼簿匯入伺服器設定連結",
     "Share Server Configuration…": "分享伺服器設定…",
     "Preferences…": "偏好設定…",
     "Copy Terminal Proxy Command": "複製終端機代理命令",
@@ -57,13 +69,21 @@ _ZH_TW = {
     "Help": "說明",
     "About": "關於",
     "Quit": "結束",
+    "Terminal proxy command copied to clipboard.": "終端機代理命令已複製到剪貼簿。",
+    "Current server URL copied to clipboard.": "目前伺服器 URL 已複製到剪貼簿。",
+    "No new valid ss:// server links found in the clipboard.": "剪貼簿中沒有找到新的有效 ss:// 伺服器連結。",
+    "No Shadowsocks QR code was found on the screen.": "螢幕上沒有找到有效的 Shadowsocks QR Code。",
+    "Screen capture is not available. Install gnome-screenshot first.": "無法擷取螢幕，請先安裝 gnome-screenshot。",
+    "QR scanning requires zbarimg (zbar-tools).": "QR Code 掃描需要 zbarimg（zbar-tools）。",
+    "Imported {count} server(s).": "已匯入 {count} 個伺服器設定。",
+    "Diagnostics exported.": "診斷資訊已匯出。",
+    "Save Diagnosis to File": "儲存診斷資訊到檔案",
+    "Help text": "選擇代理模式和伺服器即可使用。發生問題時可檢視日誌或匯出診斷資訊。",
 }
 
 
 def system_language() -> str:
     """Return our normalized UI language from the desktop/session locale."""
-    # LANGUAGE is the strongest GNU desktop preference and may contain a
-    # colon-separated fallback list. LC_ALL/LC_MESSAGES/LANG follow it.
     raw = (
         os.environ.get("LANGUAGE", "").split(":", 1)[0]
         or os.environ.get("LC_ALL", "")
@@ -84,10 +104,12 @@ def system_language() -> str:
     return "en"
 
 
-def tr(text: str) -> str:
+def tr(text: str, **kwargs) -> str:
     language = system_language()
     if language == "zh_CN":
-        return _ZH_CN.get(text, text)
-    if language == "zh_TW":
-        return _ZH_TW.get(text, text)
-    return text
+        value = _ZH_CN.get(text, text)
+    elif language == "zh_TW":
+        value = _ZH_TW.get(text, text)
+    else:
+        value = text
+    return value.format(**kwargs) if kwargs else value
