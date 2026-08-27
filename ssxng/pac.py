@@ -16,10 +16,6 @@ from urllib.parse import urlparse
 from .config import ABP_TEMPLATE_FILE, AppConfig, GFWLIST_FILE
 
 DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
-UPSTREAM_PROXY_DECLARATION = (
-    'var proxy = "SOCKS5 __SOCKS5ADDR__:__SOCKS5PORT__; '
-    'SOCKS __SOCKS5ADDR__:__SOCKS5PORT__; DIRECT;";'
-)
 
 
 def _local_proxy_available(port: int) -> bool:
@@ -31,14 +27,7 @@ def _local_proxy_available(port: int) -> bool:
 
 
 def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> bytes:
-    """Download rule assets, preferring the active Shadowsocks tunnel when available.
-
-    GFWList and the upstream ABP template live on GitHub. On networks where GitHub
-    is blocked, a normal urllib request cannot bootstrap PAC mode. If ss-local is
-    already listening, use curl's SOCKS5 hostname mode so the update goes through
-    the configured Shadowsocks server. Fall back to a direct urllib request when
-    no local SOCKS proxy is running.
-    """
+    """Download rule assets, preferring the active Shadowsocks tunnel when available."""
     curl = shutil.which("curl")
     if socks_port and curl and _local_proxy_available(socks_port):
         completed = subprocess.run(
@@ -116,6 +105,7 @@ def _user_rule_lines(config: AppConfig) -> list[str]:
 
 
 def merged_abp_rules(config: AppConfig) -> list[str]:
+    """Merge custom rules ahead of GFWList, matching ShadowsocksX-NG precedence."""
     user_rules = _user_rule_lines(config)
     upstream: list[str] = []
     if config.gfwlist_enabled and GFWLIST_FILE.exists():
@@ -144,6 +134,8 @@ def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
+    # Keep caching the upstream ShadowsocksX-NG template for compatibility and
+    # future precise-rule work, although Linux serves a compact PAC at runtime.
     template = _download(config.abp_template_url, timeout=timeout, socks_port=socks_port)
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
@@ -181,12 +173,28 @@ def _parse_custom_rules(rules: list[str]) -> tuple[set[str], set[str]]:
     return proxy, direct
 
 
-def _domain_tests(domains: set[str]) -> str:
-    if not domains:
-        return "false"
-    return " ||\n        ".join(
-        f'dnsDomainIs(host, "{d}") || shExpMatch(host, "*.{d}")' for d in sorted(domains)
-    )
+def _domain_sets(config: AppConfig) -> tuple[set[str], set[str]]:
+    """Extract fast domain rules while preserving whitelist precedence.
+
+    ShadowsocksX-NG's bundled abp.js is an old, full Adblock Plus runtime. It
+    works in macOS CFNetwork, but modern Linux PAC engines (notably Firefox)
+    can time out while parsing/initialising thousands of ABP objects. Linux
+    therefore preprocesses domain rules in Python and serves a small matcher.
+    """
+    proxy: set[str] = set()
+    direct: set[str] = set()
+    for raw_rule in merged_abp_rules(config):
+        rule = raw_rule.strip()
+        if not rule:
+            continue
+        is_direct = rule.startswith("@@")
+        if is_direct:
+            rule = rule[2:].strip()
+        domain = _domain_from_rule(rule)
+        if not domain:
+            continue
+        (direct if is_direct else proxy).add(domain)
+    return proxy, direct
 
 
 def _socks5(config: AppConfig) -> str:
@@ -204,43 +212,59 @@ def build_global_pac(config: AppConfig) -> str:
 '''
 
 
-def _build_fallback_pac(config: AppConfig) -> str:
-    custom_proxy, custom_direct = _parse_custom_rules(config.custom_rules)
-    proxy_domains = load_gfwlist_domains(config) | custom_proxy
-    direct_tests = _domain_tests(custom_direct)
-    proxy_tests = _domain_tests(proxy_domains)
+def build_pac(config: AppConfig) -> str:
+    """Build a compact cross-browser PAC from GFWList/custom domain rules.
+
+    The generated arrays are sorted and searched with binary search. Matching a
+    hostname only walks its DNS suffixes, so PAC evaluation remains fast even
+    with the full GFWList and avoids browser-specific failures of the legacy
+    ABP JavaScript engine used by the macOS app.
+    """
+    proxy_domains, direct_domains = _domain_sets(config)
+    proxy_json = json.dumps(sorted(proxy_domains), ensure_ascii=False, separators=(",", ":"))
+    direct_json = json.dumps(sorted(direct_domains), ensure_ascii=False, separators=(",", ":"))
     proxy = _socks5(config)
-    return f'''function FindProxyForURL(url, host) {{
-    host = host.toLowerCase();
-    if (isPlainHostName(host) || shExpMatch(host, "localhost")) {{
+    return f'''// ShadowsocksX-NG Linux compact PAC
+var proxyDomains = {proxy_json};
+var directDomains = {direct_json};
+
+function contains(sorted, value) {{
+    var lo = 0;
+    var hi = sorted.length - 1;
+    while (lo <= hi) {{
+        var mid = (lo + hi) >> 1;
+        var current = sorted[mid];
+        if (current === value) return true;
+        if (current < value) lo = mid + 1;
+        else hi = mid - 1;
+    }}
+    return false;
+}}
+
+function domainMatches(sorted, host) {{
+    while (host) {{
+        if (contains(sorted, host)) return true;
+        var dot = host.indexOf(".");
+        if (dot < 0) break;
+        host = host.substring(dot + 1);
+    }}
+    return false;
+}}
+
+function FindProxyForURL(url, host) {{
+    host = (host || "").toLowerCase();
+    if (!host || isPlainHostName(host) || host === "localhost") {{
         return "DIRECT";
     }}
-    if ({direct_tests}) {{
+    if (domainMatches(directDomains, host)) {{
         return "DIRECT";
     }}
-    if ({proxy_tests}) {{
+    if (domainMatches(proxyDomains, host)) {{
         return "{proxy}; DIRECT";
     }}
     return "DIRECT";
 }}
 '''
-
-
-def build_pac(config: AppConfig) -> str:
-    if not ABP_TEMPLATE_FILE.exists():
-        return _build_fallback_pac(config)
-
-    try:
-        template = ABP_TEMPLATE_FILE.read_text(encoding="utf-8")
-        rules_json = json.dumps(merged_abp_rules(config), ensure_ascii=False, separators=(",", ":"))
-        proxy_declaration = f'var proxy = "{_socks5(config)}; DIRECT;";'
-        pac = template.replace("__RULES__", rules_json)
-        pac = pac.replace(UPSTREAM_PROXY_DECLARATION, proxy_declaration)
-        pac = pac.replace("__SOCKS5ADDR__", "127.0.0.1")
-        pac = pac.replace("__SOCKS5PORT__", str(config.profile.local_port))
-        return pac
-    except (OSError, UnicodeError, ValueError):
-        return _build_fallback_pac(config)
 
 
 class PacServer:
