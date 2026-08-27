@@ -3,13 +3,16 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
 
 from . import app as legacy_app
 from . import app_beta
 from .config import AppConfig
 from .i18n import tr
-from .preferences_ng import PreferencesNgDialog
 from .runtime_ng import NgHttpProxyCore, NgPacServer, NgShadowsocksCore, NgSystemProxy
+from .server_json import example_json, export_servers, load_servers
 
 
 TRAY_ICONS = {
@@ -19,6 +22,20 @@ TRAY_ICONS = {
     "global": "shadowsocksx-ng-linux-global",
     "manual": "shadowsocksx-ng-linux-manual",
 }
+
+
+def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "ssxng.modern_ui4", *args],
+        check=False,
+        text=True,
+        capture_output=capture,
+    )
+
+
+def _alert4(self, message: str, kind=None) -> None:
+    del self, kind
+    _ui4("alert", str(message))
 
 
 def _update_indicator_icon(self) -> None:
@@ -91,21 +108,19 @@ def _on_mode(self, item, mode: str) -> None:
     self.rebuild_menu()
 
 
-def _on_edit_server(self, _item) -> None:
-    """Open the GTK4/libadwaita editor in a separate process.
+def _reload_config(self) -> None:
+    fresh = AppConfig.load()
+    self.config.__dict__.update(fresh.__dict__)
 
-    GTK3 AppIndicator and GTK4 cannot safely coexist in one process, so the
-    modern window is intentionally isolated while the tray remains GTK3.
-    """
+
+def _on_edit_server(self, _item) -> None:
     was_core_running = self.core.running()
     was_http_running = self.http.running()
     try:
         result = subprocess.run([sys.executable, "-m", "ssxng.server_manager4"], check=False)
         if result.returncode != 0:
             return
-
-        fresh = AppConfig.load()
-        self.config.__dict__.update(fresh.__dict__)
+        _reload_config(self)
         if was_core_running:
             self.core.restart()
         if was_http_running:
@@ -122,32 +137,40 @@ def _on_edit_server(self, _item) -> None:
 
 
 def _on_preferences(self, _item) -> None:
-    Gtk = legacy_app.Gtk
     before = {
-        "socks": (self.config.socks_listen_address, self.config.profile.local_port, self.config.socks_timeout, self.config.udp_relay, self.config.verbose_mode),
+        "socks": (
+            self.config.socks_listen_address,
+            self.config.profile.local_port,
+            self.config.socks_timeout,
+            self.config.udp_relay,
+            self.config.verbose_mode,
+        ),
         "pac": (self.config.pac_bind_localhost, self.config.pac_port),
         "http": (self.config.http_enabled, self.config.http_listen_address, self.config.http_port),
-        "autostart": legacy_app.autostart_enabled(),
     }
-    dialog = PreferencesNgDialog(self.config)
     try:
-        if dialog.run() != Gtk.ResponseType.OK:
+        result = _ui4("preferences")
+        if result.returncode != 0:
             return
-        dialog.apply()
+        _reload_config(self)
         legacy_app.set_autostart(self.config.autostart, shutil.which("ssx-ng-linux"))
 
-        after_socks = (self.config.socks_listen_address, self.config.profile.local_port, self.config.socks_timeout, self.config.udp_relay, self.config.verbose_mode)
+        after_socks = (
+            self.config.socks_listen_address,
+            self.config.profile.local_port,
+            self.config.socks_timeout,
+            self.config.udp_relay,
+            self.config.verbose_mode,
+        )
         after_pac = (self.config.pac_bind_localhost, self.config.pac_port)
         after_http = (self.config.http_enabled, self.config.http_listen_address, self.config.http_port)
 
         core_running = self.core.running()
         if core_running and before["socks"] != after_socks:
             self.core.restart()
-
         if before["pac"] != after_pac:
             self.pac.stop()
             self.pac.start()
-
         if core_running:
             if self.config.http_enabled:
                 if before["http"] != after_http or not self.http.running():
@@ -157,13 +180,122 @@ def _on_preferences(self, _item) -> None:
             self.restore_mode()
         else:
             self.http.stop()
-
         self.update_indicator_icon()
     except Exception as exc:
         self.alert(str(exc))
     finally:
-        dialog.destroy()
         self.rebuild_menu()
+
+
+def _on_import_url4(self, _item) -> None:
+    result = _ui4("input", tr("Import Server"), tr("Paste an ss:// URL"), capture=True)
+    if result.returncode != 0:
+        return
+    try:
+        value = result.stdout.strip()
+        profile = legacy_app.parse_ss_url(value)
+        count = self._append_imported([profile])
+        self.alert(tr("Imported {count} server(s).", count=count), legacy_app.Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(f"Import failed:\n{exc}")
+
+
+def _on_edit_rules4(self, _item) -> None:
+    result = _ui4("rules")
+    if result.returncode != 0:
+        return
+    _reload_config(self)
+    self.alert(tr("PAC rules saved. Changes are effective immediately."), legacy_app.Gtk.MessageType.INFO)
+    self.rebuild_menu()
+
+
+def _on_logs4(self, _item) -> None:
+    _ui4("logs")
+
+
+def _on_about4(self, _item) -> None:
+    _ui4("about")
+
+
+def _on_share_server4(self, _item) -> None:
+    url = legacy_app.build_ss_url(self.config.profile)
+    qr_path: Path | None = None
+    try:
+        qrencode = shutil.which("qrencode")
+        args = ["share", self.config.profile.name, url]
+        if qrencode:
+            tmp = tempfile.NamedTemporaryFile(prefix="ssxng-share-", suffix=".png", delete=False)
+            qr_path = Path(tmp.name)
+            tmp.close()
+            subprocess.run([qrencode, "-o", str(qr_path), "-s", "7", "-m", "2", url], check=True)
+            args.extend(["--qr", str(qr_path)])
+        _ui4(*args)
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        if qr_path is not None:
+            try:
+                qr_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def _on_share_all_servers4(self, _item) -> None:
+    urls = "\n".join(legacy_app.build_ss_url(profile) for profile in self.config.profiles)
+    _ui4("viewer", tr("Share All Server URLs…"), urls)
+
+
+def _choose_file(mode: str, title: str, suggested: str = "") -> str | None:
+    args = ["file", mode, title]
+    if suggested:
+        args.extend(["--suggested", suggested])
+    result = _ui4(*args, capture=True)
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _on_import_server_file4(self, _item) -> None:
+    path = _choose_file("open", tr("Import Server Configuration File…"))
+    if not path:
+        return
+    try:
+        profiles = load_servers(Path(path))
+        self.config.profiles.extend(profiles)
+        self.config.active_profile = len(self.config.profiles) - len(profiles)
+        self.config.save()
+        self.rebuild_menu()
+        self.alert(tr("Imported {count} server(s).", count=len(profiles)), legacy_app.Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
+
+
+def _on_export_server_file4(self, _item) -> None:
+    path = _choose_file("save", tr("Export All Server Configurations…"), "shadowsocks-servers.json")
+    if not path:
+        return
+    try:
+        export_servers(self.config.profiles, Path(path))
+        self.alert(tr("Exported {count} server(s).", count=len(self.config.profiles)), legacy_app.Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
+
+
+def _on_show_example_server_file4(self, _item) -> None:
+    _ui4("viewer", tr("Show Example Server Configuration…"), example_json())
+
+
+def _on_export_diagnostics4(self, _item) -> None:
+    name = f"ShadowsocksX-NG_diagnose_{datetime.now():%Y%m%d_%H%M%S}.txt"
+    path = _choose_file("save", tr("Save Diagnosis to File"), name)
+    if not path:
+        return
+    try:
+        Path(path).write_text(self.diagnostics_text(), encoding="utf-8")
+        self.alert(tr("Diagnostics exported."), legacy_app.Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
 
 
 def _rebuild_menu(self) -> None:
@@ -245,7 +377,20 @@ def main() -> int:
     legacy_app.TrayApp.on_mode = _on_mode
     legacy_app.TrayApp.on_preferences = _on_preferences
     legacy_app.TrayApp.on_edit_server = _on_edit_server
+    legacy_app.TrayApp.on_import_url = _on_import_url4
+    legacy_app.TrayApp.on_edit_rules = _on_edit_rules4
+    legacy_app.TrayApp.on_logs = _on_logs4
+    legacy_app.TrayApp.on_about = _on_about4
 
+    # app_beta.main installs these symbols onto TrayApp. Replace the symbols
+    # themselves so every dialog it wires up is GTK4/libadwaita-backed.
+    app_beta._alert = _alert4
+    app_beta._on_share_server = _on_share_server4
+    app_beta._on_share_all_servers = _on_share_all_servers4
+    app_beta._on_import_server_file = _on_import_server_file4
+    app_beta._on_export_server_file = _on_export_server_file4
+    app_beta._on_show_example_server_file = _on_show_example_server_file4
+    app_beta._on_export_diagnostics = _on_export_diagnostics4
     app_beta._update_indicator_icon = _update_indicator_icon
     app_beta._rebuild_menu = _rebuild_menu
     return app_beta.main()
