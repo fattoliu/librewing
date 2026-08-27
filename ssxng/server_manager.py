@@ -10,7 +10,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
 from .i18n import tr
-from .ui import create_alert, polish_dialog
+from .ui import HandyDialog, create_alert, polish_dialog
 
 CIPHERS = [
     "aes-256-gcm",
@@ -31,11 +31,11 @@ CIPHERS = [
 ]
 
 
-class ServerManagerDialog(Gtk.Dialog):
-    """Manage all Shadowsocks server profiles in one polished window."""
+class ServerManagerDialog(HandyDialog):
+    """Manage all Shadowsocks server profiles in one libhandy window."""
 
     def __init__(self, config: AppConfig):
-        super().__init__(title=tr("Server Settings"), flags=0)
+        super().__init__(title=tr("Server Settings"))
         self.config = config
         self.profiles = copy.deepcopy(config.profiles)
         self.active_index = min(config.active_profile, len(self.profiles) - 1)
