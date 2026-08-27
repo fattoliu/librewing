@@ -38,6 +38,22 @@ def _on_delete_server(self, _item) -> None:
     _open_server_manager(self)
 
 
+def _on_quit(self, _item) -> None:
+    """Stop runtime services without overwriting the user's selected mode.
+
+    Choosing Proxy Off should persist ``mode=off``. Quitting the application is
+    different: it only tears down the current runtime and should preserve PAC,
+    Global, or Manual so the next launch can restore that selection.
+    """
+    try:
+        self.proxy._gsettings("org.gnome.system.proxy", "mode", "'none'")
+    finally:
+        self.http.stop()
+        self.core.stop()
+        self.pac.stop()
+        legacy_app.Gtk.main_quit()
+
+
 def main() -> int:
     # Reuse the proven tray implementation and only replace the server-manager UI.
     # The real HttpProxyCore from app/core must stay enabled so the built-in
@@ -45,6 +61,7 @@ def main() -> int:
     legacy_app.TrayApp.on_add_server = _on_add_server
     legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_delete_server = _on_delete_server
+    legacy_app.TrayApp.on_quit = _on_quit
     try:
         legacy_app.TrayApp()
         legacy_app.Gtk.main()
