@@ -34,10 +34,8 @@ def _port_free(name: str, port: int) -> CheckResult:
 def run_health_checks(config: AppConfig) -> list[CheckResult]:
     results = [
         _command("ss-local"),
-        _command("privoxy"),
         _command("gsettings"),
         _port_free("SOCKS port", config.profile.local_port),
-        _port_free("HTTP proxy port", config.http_port),
         _port_free("PAC port", config.pac_port),
     ]
     if config.profile.plugin:
@@ -48,10 +46,6 @@ def run_health_checks(config: AppConfig) -> list[CheckResult]:
             results.append(CheckResult("SIP003 plugin", False, str(exc)))
     else:
         results.append(CheckResult("SIP003 plugin", True, "not configured"))
-    if config.pac_port == config.http_port:
-        results.append(CheckResult("Proxy port separation", False, "PAC and HTTP proxy ports are identical"))
-    else:
-        results.append(CheckResult("Proxy port separation", True, "PAC and HTTP proxy ports are distinct"))
     return results
 
 
