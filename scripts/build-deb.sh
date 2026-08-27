@@ -12,9 +12,12 @@ mkdir -p \
   "$PKG/DEBIAN" \
   "$PKG/usr/bin" \
   "$PKG/usr/lib/shadowsocksx-ng-linux" \
-  "$PKG/usr/share/applications"
+  "$PKG/usr/share/applications" \
+  "$PKG/usr/share/icons/hicolor/scalable/apps"
 
 cp -R "$ROOT/ssxng" "$PKG/usr/lib/shadowsocksx-ng-linux/"
+cp "$ROOT"/assets/shadowsocksx-ng-linux-*-symbolic.svg \
+  "$PKG/usr/share/icons/hicolor/scalable/apps/"
 
 cat > "$PKG/usr/bin/ssx-ng-linux" <<'EOF'
 #!/usr/bin/env bash
@@ -36,7 +39,7 @@ Type=Application
 Name=ShadowsocksX-NG Linux
 Comment=Shadowsocks desktop proxy client
 Exec=ssx-ng-linux
-Icon=network-vpn-symbolic
+Icon=shadowsocksx-ng-linux-off-symbolic
 Terminal=false
 Categories=Network;Utility;
 StartupNotify=false
