@@ -8,7 +8,7 @@ from .instance import AlreadyRunningError, InstanceLock
 def main() -> int:
     try:
         with InstanceLock():
-            from .app import main as app_main
+            from .app_beta import main as app_main
 
             return app_main()
     except AlreadyRunningError as exc:
