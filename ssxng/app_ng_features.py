@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import shutil
+
 from . import app as legacy_app
 from . import app_beta
 from .i18n import tr
+from .preferences_ng import PreferencesNgDialog
 from .runtime_ng import NgHttpProxyCore, NgPacServer, NgShadowsocksCore, NgSystemProxy
 
 
@@ -85,12 +88,53 @@ def _on_mode(self, item, mode: str) -> None:
     self.rebuild_menu()
 
 
-def _rebuild_menu(self) -> None:
-    """Keep the tray intentionally compact, matching ShadowsocksX-NG's menu hierarchy.
+def _on_preferences(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    before = {
+        "socks": (self.config.socks_listen_address, self.config.profile.local_port, self.config.socks_timeout, self.config.udp_relay, self.config.verbose_mode),
+        "pac": (self.config.pac_bind_localhost, self.config.pac_port),
+        "http": (self.config.http_enabled, self.config.http_listen_address, self.config.http_port),
+        "autostart": legacy_app.autostart_enabled(),
+    }
+    dialog = PreferencesNgDialog(self.config)
+    try:
+        if dialog.run() != Gtk.ResponseType.OK:
+            return
+        dialog.apply()
+        legacy_app.set_autostart(self.config.autostart, shutil.which("ssx-ng-linux"))
 
-    Configuration belongs in Preferences rather than being duplicated as tray
-    commands. Server-management operations live under the Servers submenu.
-    """
+        after_socks = (self.config.socks_listen_address, self.config.profile.local_port, self.config.socks_timeout, self.config.udp_relay, self.config.verbose_mode)
+        after_pac = (self.config.pac_bind_localhost, self.config.pac_port)
+        after_http = (self.config.http_enabled, self.config.http_listen_address, self.config.http_port)
+
+        core_running = self.core.running()
+        if core_running and before["socks"] != after_socks:
+            self.core.restart()
+
+        if before["pac"] != after_pac:
+            self.pac.stop()
+            self.pac.start()
+
+        if core_running:
+            if self.config.http_enabled:
+                if before["http"] != after_http or not self.http.running():
+                    self.http.restart()
+            else:
+                self.http.stop()
+            self.restore_mode()
+        else:
+            self.http.stop()
+
+        self.update_indicator_icon()
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        dialog.destroy()
+        self.rebuild_menu()
+
+
+def _rebuild_menu(self) -> None:
+    """Compact tray hierarchy matching ShadowsocksX-NG."""
     Gtk = legacy_app.Gtk
     menu = Gtk.Menu()
 
@@ -134,14 +178,13 @@ def _rebuild_menu(self) -> None:
     servers.show_all()
     servers_item.set_submenu(servers)
     menu.append(servers_item)
+    menu.append(app_beta._menu_item(tr("Ping Server"), self.on_test_latency))
 
     menu.append(app_beta._menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
     menu.append(app_beta._menu_item(tr("Import Server URL…"), self.on_import_url))
     menu.append(app_beta._menu_item(tr("Share Server Configuration…"), self.on_share_server))
     menu.append(Gtk.SeparatorMenuItem())
 
-    # ShadowsocksX-NG keeps advanced/network/PAC configuration inside one
-    # Preferences window. Do not expose those pages as separate tray commands.
     menu.append(app_beta._menu_item(tr("Preferences…"), self.on_preferences))
     menu.append(app_beta._menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
     menu.append(app_beta._menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
@@ -169,6 +212,7 @@ def main() -> int:
     legacy_app.TrayApp.ensure_core = _ensure_core
     legacy_app.TrayApp.restore_mode = _restore_mode
     legacy_app.TrayApp.on_mode = _on_mode
+    legacy_app.TrayApp.on_preferences = _on_preferences
 
     app_beta._update_indicator_icon = _update_indicator_icon
     app_beta._rebuild_menu = _rebuild_menu
