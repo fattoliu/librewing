@@ -10,6 +10,7 @@ from gi.repository import Gtk  # noqa: E402
 from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig
 from .i18n import system_language, tr
+from .ui import polish_dialog
 
 
 _PREF_LABELS = {
@@ -61,13 +62,14 @@ class PreferencesNgDialog(Gtk.Dialog):
         super().__init__(title=tr("Preferences"), flags=0)
         self.config = config
         self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
-        self.set_default_size(720, 520)
-        self.set_resizable(False)
+        polish_dialog(self, default_width=720, default_height=520, resizable=False)
 
         notebook = Gtk.Notebook()
         notebook.set_tab_pos(Gtk.PositionType.TOP)
         notebook.set_scrollable(False)
         notebook.set_show_border(False)
+        notebook.set_hexpand(True)
+        notebook.set_vexpand(True)
         self.get_content_area().add(notebook)
 
         notebook.append_page(self._general_page(), _tab("General", "preferences-system-symbolic"))
@@ -151,6 +153,7 @@ class PreferencesNgDialog(Gtk.Dialog):
         _row(grid, 0, "Bypass proxy settings for these Hosts & Domains:", self.exceptions)
 
         help_text = Gtk.Label(label=_pt("Separate multiple hosts, domains, or networks with commas."), halign=Gtk.Align.START, wrap=True)
+        help_text.get_style_context().add_class("dim-label")
         grid.attach(help_text, 1, 1, 1, 1)
         return grid
 
