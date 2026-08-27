@@ -21,8 +21,7 @@ def _capture_screen(image: Path) -> None:
     if screenshot:
         result = subprocess.run(
             [screenshot, "-f", str(image)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=15,
             check=False,
@@ -47,8 +46,7 @@ def _capture_screen(image: Path) -> None:
                 "false",
                 str(image),
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=15,
             check=False,
@@ -73,13 +71,11 @@ def scan_screen_payloads() -> list[str]:
 
         decoded = subprocess.run(
             [zbarimg, "--quiet", "--raw", str(image)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=15,
             check=False,
         )
-        # zbarimg uses exit 4 when no symbol was found.
         if decoded.returncode not in (0, 4):
             detail = (decoded.stderr or "QR decoding failed").strip()
             raise ScreenQrError(detail)
