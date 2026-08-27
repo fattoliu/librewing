@@ -9,6 +9,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
+from .i18n import tr
 
 CIPHERS = [
     "aes-256-gcm",
@@ -30,15 +31,10 @@ CIPHERS = [
 
 
 class ServerManagerDialog(Gtk.Dialog):
-    """Manage all Shadowsocks server profiles in one window.
-
-    The interaction intentionally mirrors ShadowsocksX-NG: a persistent list on
-    the left, +/- controls underneath, and the selected profile editor on the
-    right. Changes are committed only when Save is pressed.
-    """
+    """Manage all Shadowsocks server profiles in one window."""
 
     def __init__(self, config: AppConfig):
-        super().__init__(title="Server Settings", flags=0)
+        super().__init__(title=tr("Server Settings"), flags=0)
         self.config = config
         self.profiles = copy.deepcopy(config.profiles)
         self.active_index = min(config.active_profile, len(self.profiles) - 1)
@@ -60,7 +56,6 @@ class ServerManagerDialog(Gtk.Dialog):
         root.set_vexpand(True)
         content.pack_start(root, True, True, 0)
 
-        # Left pane: profiles + add/remove controls.
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         left.set_size_request(250, -1)
         root.pack_start(left, False, False, 0)
@@ -70,7 +65,7 @@ class ServerManagerDialog(Gtk.Dialog):
         self.list_view.set_headers_visible(False)
         renderer = Gtk.CellRendererText()
         renderer.set_property("ellipsize", 3)
-        self.list_view.append_column(Gtk.TreeViewColumn("Server", renderer, text=0))
+        self.list_view.append_column(Gtk.TreeViewColumn(tr("Server"), renderer, text=0))
         self.list_view.get_selection().connect("changed", self._on_selection_changed)
 
         scroller = Gtk.ScrolledWindow()
@@ -81,10 +76,10 @@ class ServerManagerDialog(Gtk.Dialog):
 
         controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         add = Gtk.Button.new_from_icon_name("list-add-symbolic", Gtk.IconSize.BUTTON)
-        add.set_tooltip_text("Add server")
+        add.set_tooltip_text(tr("Add server"))
         add.connect("clicked", self._on_add)
         remove = Gtk.Button.new_from_icon_name("list-remove-symbolic", Gtk.IconSize.BUTTON)
-        remove.set_tooltip_text("Remove selected server")
+        remove.set_tooltip_text(tr("Remove selected server"))
         remove.connect("clicked", self._on_remove)
         controls.pack_start(add, False, False, 0)
         controls.pack_start(remove, False, False, 0)
@@ -93,7 +88,6 @@ class ServerManagerDialog(Gtk.Dialog):
         separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         root.pack_start(separator, False, False, 0)
 
-        # Right pane: current profile editor.
         form = Gtk.Grid(column_spacing=16, row_spacing=14)
         form.set_hexpand(True)
         form.set_valign(Gtk.Align.START)
@@ -125,12 +119,12 @@ class ServerManagerDialog(Gtk.Dialog):
             ("Local SOCKS port", self.local_port),
         ]
         for row, (label, widget) in enumerate(fields):
-            form.attach(Gtk.Label(label=label, halign=Gtk.Align.END, valign=Gtk.Align.CENTER), 0, row, 1, 1)
+            form.attach(Gtk.Label(label=tr(label), halign=Gtk.Align.END, valign=Gtk.Align.CENTER), 0, row, 1, 1)
             widget.set_hexpand(True)
             form.attach(widget, 1, row, 1, 1)
 
         note = Gtk.Label(
-            label="Tip: select a server on the left to edit it. Add or remove multiple profiles before saving.",
+            label=tr("Tip: select a server on the left to edit it. Add or remove multiple profiles before saving."),
             halign=Gtk.Align.START,
             wrap=True,
         )
@@ -220,7 +214,7 @@ class ServerManagerDialog(Gtk.Dialog):
                 transient_for=self,
                 message_type=Gtk.MessageType.INFO,
                 buttons=Gtk.ButtonsType.OK,
-                text="At least one server profile must remain.",
+                text=tr("At least one server profile must remain."),
             )
             message.run()
             message.destroy()
@@ -232,7 +226,7 @@ class ServerManagerDialog(Gtk.Dialog):
 
     def apply(self) -> None:
         if not self.profiles:
-            raise ValueError("At least one server profile is required")
+            raise ValueError(tr("At least one server profile must remain."))
         self.config.profiles = self.profiles
         self.config.active_profile = max(0, min(self.active_index, len(self.profiles) - 1))
         self.config.save()
