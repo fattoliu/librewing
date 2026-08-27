@@ -4,6 +4,7 @@ import signal
 import sys
 
 from . import app as legacy_app
+from .i18n import tr
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
@@ -91,15 +92,23 @@ def _on_toggle_shadowsocks(self, _item) -> None:
 
 
 def _rebuild_menu(self) -> None:
-    """Build a macOS ShadowsocksX-NG-style native cascading tray menu."""
+    """Build a localized macOS ShadowsocksX-NG-style cascading tray menu."""
     Gtk = legacy_app.Gtk
     menu = Gtk.Menu()
 
     running = self.core.running()
     self.update_indicator_icon()
-    status = _menu_item(f"●  Shadowsocks: {'On' if running else 'Off'}", sensitive=False)
+    status = _menu_item(
+        f"●  {tr('Shadowsocks: On') if running else tr('Shadowsocks: Off')}",
+        sensitive=False,
+    )
     menu.append(status)
-    menu.append(_menu_item("Turn Off Shadowsocks" if running else "Turn On Shadowsocks", self.on_toggle_shadowsocks))
+    menu.append(
+        _menu_item(
+            tr("Turn Off Shadowsocks") if running else tr("Turn On Shadowsocks"),
+            self.on_toggle_shadowsocks,
+        )
+    )
     menu.append(Gtk.SeparatorMenuItem())
 
     for label, mode in [
@@ -107,19 +116,19 @@ def _rebuild_menu(self) -> None:
         ("Global Mode", "global"),
         ("Manual Mode", "manual"),
     ]:
-        item = Gtk.CheckMenuItem(label=label)
+        item = Gtk.CheckMenuItem(label=tr(label))
         item.set_draw_as_radio(True)
         item.set_active(self.config.mode == mode)
         item.connect("activate", self.on_mode, mode)
         menu.append(item)
 
-    menu.append(_menu_item("External PAC Auto Mode", sensitive=False))
+    menu.append(_menu_item(tr("External PAC Auto Mode"), sensitive=False))
     menu.append(Gtk.SeparatorMenuItem())
 
     # Native Gtk submenu: a separate floating cascade, matching macOS.
-    servers_item = _menu_item(f"Servers - {self.config.profile.name}")
+    servers_item = _menu_item(f"{tr('Servers')} - {self.config.profile.name}")
     servers = Gtk.Menu()
-    servers.append(_menu_item("Server Settings…", self.on_edit_server))
+    servers.append(_menu_item(tr("Server Settings…"), self.on_edit_server))
     servers.append(Gtk.SeparatorMenuItem())
     for i, profile in enumerate(self.config.profiles):
         item = Gtk.CheckMenuItem(label=f"{profile.name} ({profile.server}:{profile.server_port})")
@@ -131,24 +140,24 @@ def _rebuild_menu(self) -> None:
     servers_item.set_submenu(servers)
     menu.append(servers_item)
 
-    menu.append(_menu_item("Scan QR Code on Screen", sensitive=False))
-    menu.append(_menu_item("Import Server URL…", self.on_import_url))
-    menu.append(_menu_item("Share Server Configuration…", self.on_copy_url))
+    menu.append(_menu_item(tr("Scan QR Code on Screen"), sensitive=False))
+    menu.append(_menu_item(tr("Import Server URL…"), self.on_import_url))
+    menu.append(_menu_item(tr("Share Server Configuration…"), self.on_copy_url))
     menu.append(Gtk.SeparatorMenuItem())
 
-    menu.append(_menu_item("Preferences…", self.on_preferences))
-    menu.append(_menu_item("Copy Terminal Proxy Command", self.on_copy_terminal_proxy_command))
-    menu.append(_menu_item("Update PAC from GFWList", self.on_update_gfwlist))
-    menu.append(_menu_item("Edit PAC User Rules…", self.on_edit_rules))
+    menu.append(_menu_item(tr("Preferences…"), self.on_preferences))
+    menu.append(_menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
+    menu.append(_menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
+    menu.append(_menu_item(tr("Edit PAC User Rules…"), self.on_edit_rules))
     menu.append(Gtk.SeparatorMenuItem())
 
-    menu.append(_menu_item("View Logs…", self.on_logs))
-    menu.append(_menu_item("Export Diagnostics…", self.on_diagnostics))
-    menu.append(_menu_item("Check for Updates…", self.on_check_updates))
-    menu.append(_menu_item("Help", self.on_help))
-    menu.append(_menu_item("About", self.on_about))
+    menu.append(_menu_item(tr("View Logs…"), self.on_logs))
+    menu.append(_menu_item(tr("Export Diagnostics…"), self.on_diagnostics))
+    menu.append(_menu_item(tr("Check for Updates…"), self.on_check_updates))
+    menu.append(_menu_item(tr("Help"), self.on_help))
+    menu.append(_menu_item(tr("About"), self.on_about))
     menu.append(Gtk.SeparatorMenuItem())
-    menu.append(_menu_item("Quit", self.on_quit))
+    menu.append(_menu_item(tr("Quit"), self.on_quit))
 
     menu.show_all()
     self.indicator.set_menu(menu)
