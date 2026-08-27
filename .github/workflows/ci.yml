@@ -21,10 +21,10 @@ jobs:
         run: python -m pip install -e '.[dev]'
       - name: Compile
         run: python -m compileall -q ssxng
-      - name: Lint
-        run: ruff check ssxng tests
       - name: Unit tests with branch coverage
         run: pytest -q --cov=ssxng --cov-branch --cov-report=term-missing
+      - name: Lint
+        run: ruff check ssxng tests
 
   desktop-smoke:
     name: Ubuntu desktop import smoke
