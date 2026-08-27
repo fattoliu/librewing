@@ -209,24 +209,20 @@ class SystemProxy:
         self.config.mode = "manual"
         self.config.save()
 
+    def _auto_mode(self, path: str) -> None:
+        url = f"http://127.0.0.1:{self.config.pac_port}/{path}"
+        self._gsettings("org.gnome.system.proxy", "autoconfig-url", f"'{url}'")
+        self._gsettings("org.gnome.system.proxy", "mode", "'auto'")
+
     def global_mode(self) -> None:
-        # Global mode is SOCKS-only. Clear any HTTP/HTTPS values left by older
-        # Privoxy-based builds; otherwise GNOME-aware apps (notably Firefox)
-        # prefer the dead HTTP proxy on 8119 and never reach the working SOCKS5
-        # listener.
-        self._gsettings("org.gnome.system.proxy", "use-same-proxy", "false")
-        for schema in ("org.gnome.system.proxy.http", "org.gnome.system.proxy.https"):
-            self._gsettings(schema, "host", "''")
-            self._gsettings(schema, "port", "0")
-        self._gsettings("org.gnome.system.proxy.socks", "host", "'127.0.0.1'")
-        self._gsettings("org.gnome.system.proxy.socks", "port", str(self.config.profile.local_port))
-        self._gsettings("org.gnome.system.proxy", "mode", "'manual'")
+        # Firefox can interpret GNOME's bare SOCKS setting as SOCKS4 even when
+        # the local Shadowsocks listener is SOCKS5. Use PAC and state SOCKS5
+        # explicitly so GNOME-aware browsers receive an unambiguous proxy type.
+        self._auto_mode("global.pac")
         self.config.mode = "global"
         self.config.save()
 
     def pac_mode(self) -> None:
-        url = f"http://127.0.0.1:{self.config.pac_port}/proxy.pac"
-        self._gsettings("org.gnome.system.proxy", "autoconfig-url", f"'{url}'")
-        self._gsettings("org.gnome.system.proxy", "mode", "'auto'")
+        self._auto_mode("proxy.pac")
         self.config.mode = "pac"
         self.config.save()
