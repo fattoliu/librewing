@@ -9,17 +9,23 @@ from .i18n import system_language
 
 
 _DIALOG_CSS = b"""
-/* Unified dialog surface for normal dialogs, alerts, file choosers and About. */
+/* One visual language for every GTK3 dialog used by the application. */
 window.dialog,
 window.message-dialog,
 window.filechooser,
+window.background.dialog,
+window.background.message-dialog,
 dialog {
     background-color: @theme_bg_color;
     border-radius: 12px;
 }
 
-/* GTK3 can otherwise repaint the bottom action area as a square rectangle.
-   Give the whole dialog stack matching lower corner radii. */
+/* CSD decorations are drawn separately by GTK/Mutter. Giving decoration and
+   the root boxes the same radius prevents the action area from flattening the
+   two lower corners. */
+window.dialog decoration,
+window.message-dialog decoration,
+window.filechooser decoration,
 window.dialog > box,
 window.message-dialog > box,
 window.filechooser > box,
@@ -28,13 +34,17 @@ window.filechooser > box,
     border-radius: 12px;
 }
 
+window.dialog decoration,
+window.message-dialog decoration,
+window.filechooser decoration {
+    box-shadow: 0 10px 28px alpha(black, 0.22);
+}
+
 .dialog-vbox,
 .message-dialog .dialog-vbox {
     padding: 20px 22px 12px 22px;
 }
 
-/* Gtk CSS does not support a generic `spacing` property. Widget spacing is
-   configured from Python; CSS only handles margins/padding. */
 .message-dialog image {
     margin-right: 14px;
 }
@@ -59,19 +69,17 @@ window.filechooser > box,
     border-radius: 8px;
 }
 
-.dialog-action-area button.suggested-action {
-    font-weight: 600;
-}
-
+.dialog-action-area button.suggested-action,
 .dialog-action-area button.destructive-action {
     font-weight: 600;
 }
 
-/* Keep all form-style popups visually consistent. */
 entry,
 spinbutton,
 textview,
-combobox button {
+combobox button,
+scrolledwindow,
+treeview {
     border-radius: 7px;
 }
 
@@ -90,6 +98,23 @@ notebook > stack {
 filechooser .dialog-action-area,
 .filechooser .dialog-action-area {
     padding-top: 10px;
+}
+
+/* Utility classes used by the larger custom dialogs. */
+.ssx-dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.ssx-dialog-subtitle {
+    color: alpha(@theme_fg_color, 0.66);
+}
+
+.ssx-card {
+    background-color: alpha(@theme_fg_color, 0.035);
+    border: 1px solid alpha(@theme_fg_color, 0.10);
+    border-radius: 10px;
+    padding: 14px;
 }
 """
 
@@ -116,18 +141,28 @@ def install_dialog_styles() -> None:
     _provider = provider
 
 
-def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480, resizable: bool = False) -> Gtk.Dialog:
-    """Apply consistent geometry, spacing and response styling to a GTK dialog."""
+def polish_dialog(
+    dialog: Gtk.Dialog,
+    *,
+    default_width: int = 480,
+    default_height: int = -1,
+    resizable: bool = False,
+) -> Gtk.Dialog:
+    """Apply common geometry, spacing and response styling to any GTK dialog."""
     dialog.set_border_width(0)
     dialog.set_resizable(resizable)
-    if default_width > 0:
-        dialog.set_default_size(default_width, -1)
+    if default_width > 0 or default_height > 0:
+        dialog.set_default_size(default_width, default_height)
     try:
         dialog.set_deletable(True)
         dialog.set_modal(True)
         dialog.set_skip_taskbar_hint(True)
     except Exception:
         pass
+
+    content = dialog.get_content_area()
+    if content is not None:
+        content.set_spacing(10)
 
     action_area = dialog.get_action_area()
     if action_area is not None:
@@ -166,9 +201,10 @@ def _ok_label() -> str:
     return "OK"
 
 
-def create_alert(message: str, kind=Gtk.MessageType.INFO) -> Gtk.MessageDialog:
+def create_alert(message: str, kind=Gtk.MessageType.INFO, *, parent=None) -> Gtk.MessageDialog:
     """Create the common alert used for latency, status, success and errors."""
     dialog = Gtk.MessageDialog(
+        transient_for=parent,
         message_type=kind,
         buttons=Gtk.ButtonsType.OK,
         text=message,
