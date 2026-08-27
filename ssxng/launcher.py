@@ -14,7 +14,7 @@ def main() -> int:
             # ss-local process launched with our runtime config before starting.
             cleanup_managed_orphan_ss_local()
 
-            from .app_beta import main as app_main
+            from .app_ng_features import main as app_main
 
             return app_main()
     except AlreadyRunningError as exc:
