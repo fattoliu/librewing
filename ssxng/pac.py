@@ -3,6 +3,9 @@ from __future__ import annotations
 import base64
 import json
 import re
+import shutil
+import socket
+import subprocess
 import threading
 import urllib.request
 from datetime import datetime, timezone
@@ -19,7 +22,43 @@ UPSTREAM_PROXY_DECLARATION = (
 )
 
 
-def _download(url: str, timeout: int = 20) -> bytes:
+def _local_proxy_available(port: int) -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=0.3):
+            return True
+    except OSError:
+        return False
+
+
+def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> bytes:
+    """Download rule assets, preferring the active Shadowsocks tunnel when available.
+
+    GFWList and the upstream ABP template live on GitHub. On networks where GitHub
+    is blocked, a normal urllib request cannot bootstrap PAC mode. If ss-local is
+    already listening, use curl's SOCKS5 hostname mode so the update goes through
+    the configured Shadowsocks server. Fall back to a direct urllib request when
+    no local SOCKS proxy is running.
+    """
+    curl = shutil.which("curl")
+    if socks_port and curl and _local_proxy_available(socks_port):
+        completed = subprocess.run(
+            [
+                curl,
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--max-time",
+                str(timeout),
+                "--socks5-hostname",
+                f"127.0.0.1:{int(socks_port)}",
+                url,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return completed.stdout
+
     request = urllib.request.Request(url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
@@ -99,12 +138,13 @@ def merged_abp_rules(config: AppConfig) -> list[str]:
 
 
 def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
-    raw = _download(config.gfwlist_url, timeout=timeout)
+    socks_port = config.profile.local_port
+    raw = _download(config.gfwlist_url, timeout=timeout, socks_port=socks_port)
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
-    template = _download(config.abp_template_url, timeout=timeout)
+    template = _download(config.abp_template_url, timeout=timeout, socks_port=socks_port)
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
         raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
