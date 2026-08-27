@@ -9,13 +9,35 @@ from gi.repository import Gtk  # noqa: E402
 
 from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig
-from .i18n import tr
+from .i18n import system_language, tr
+
+
+_PREF_LABELS = {
+    "zh_CN": {
+        "General": "常规",
+        "Advanced": "高级",
+        "Network Interface": "网络接口",
+        "Separate multiple hosts, domains, or networks with commas.": "多个主机、域名或网段请使用逗号分隔。",
+        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 和 HTTP 代理端口不能相同。",
+    },
+    "zh_TW": {
+        "General": "一般",
+        "Advanced": "進階",
+        "Network Interface": "網路介面",
+        "Separate multiple hosts, domains, or networks with commas.": "多個主機、網域或網段請使用逗號分隔。",
+        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 與 HTTP 代理連接埠不能相同。",
+    },
+}
+
+
+def _pt(text: str) -> str:
+    return _PREF_LABELS.get(system_language(), {}).get(text, tr(text))
 
 
 def _tab(label: str, icon_name: str) -> Gtk.Widget:
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
     image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DIALOG)
-    text = Gtk.Label(label=tr(label))
+    text = Gtk.Label(label=_pt(label))
     box.pack_start(image, False, False, 0)
     box.pack_start(text, False, False, 0)
     box.show_all()
@@ -128,11 +150,7 @@ class PreferencesNgDialog(Gtk.Dialog):
         self.exceptions = Gtk.Entry(text=self.config.proxy_exceptions)
         _row(grid, 0, "Bypass proxy settings for these Hosts & Domains:", self.exceptions)
 
-        help_text = Gtk.Label(
-            label=tr("Separate multiple hosts, domains, or networks with commas."),
-            halign=Gtk.Align.START,
-            wrap=True,
-        )
+        help_text = Gtk.Label(label=_pt("Separate multiple hosts, domains, or networks with commas."), halign=Gtk.Align.START, wrap=True)
         grid.attach(help_text, 1, 1, 1, 1)
         return grid
 
@@ -147,7 +165,7 @@ class PreferencesNgDialog(Gtk.Dialog):
         pac_port = self.pac_port.get_value_as_int()
         http_port = self.http_port.get_value_as_int()
         if len({socks_port, pac_port, http_port}) != 3:
-            raise ValueError(tr("SOCKS5, PAC and HTTP proxy ports must be different."))
+            raise ValueError(_pt("SOCKS5, PAC and HTTP proxy ports must be different."))
 
         self.config.autostart = self.autostart.get_active()
         self.config.show_mode_in_status_bar = self.show_mode.get_active()
