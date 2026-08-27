@@ -15,8 +15,10 @@ from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig, LOG_FILE
 from .i18n import system_language, tr
 
-
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
+PAGE_PAD = 24
+GROUP_GAP = 20
+CONTROL_GAP = 12
 
 _EXTRA_I18N = {
     "zh_CN": {
@@ -25,6 +27,10 @@ _EXTRA_I18N = {
         "Network Interface": "网络接口",
         "Import": "导入",
         "Copy URL": "复制 URL",
+        "Proxy behavior": "代理行为",
+        "PAC service": "PAC 服务",
+        "HTTP service": "HTTP 服务",
+        "Network exceptions": "网络例外",
         "Separate multiple hosts, domains, or networks with commas.": "多个主机、域名或网段请使用逗号分隔。",
         "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 和 HTTP 代理端口不能相同。",
     },
@@ -34,6 +40,10 @@ _EXTRA_I18N = {
         "Network Interface": "網路介面",
         "Import": "匯入",
         "Copy URL": "複製 URL",
+        "Proxy behavior": "代理行為",
+        "PAC service": "PAC 服務",
+        "HTTP service": "HTTP 服務",
+        "Network exceptions": "網路例外",
         "Separate multiple hosts, domains, or networks with commas.": "多個主機、網域或網段請使用逗號分隔。",
         "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 與 HTTP 代理連接埠不能相同。",
     },
@@ -55,12 +65,23 @@ def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
 def _footer(cancel_cb, primary_label: str, primary_cb) -> Gtk.Box:
     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
     box.set_halign(Gtk.Align.END)
-    box.set_margin_top(12)
-    box.set_margin_bottom(16)
-    box.set_margin_start(18)
-    box.set_margin_end(18)
+    box.set_margin_top(18)
+    box.set_margin_bottom(PAGE_PAD)
+    box.set_margin_start(PAGE_PAD)
+    box.set_margin_end(PAGE_PAD)
     box.append(_button(tr("Cancel"), cancel_cb))
     box.append(_button(primary_label, primary_cb, suggested=True))
+    return box
+
+
+def _single_footer(label: str, callback, *, suggested: bool = True) -> Gtk.Box:
+    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+    box.set_halign(Gtk.Align.END)
+    box.set_margin_top(18)
+    box.set_margin_bottom(PAGE_PAD)
+    box.set_margin_start(PAGE_PAD)
+    box.set_margin_end(PAGE_PAD)
+    box.append(_button(label, callback, suggested=suggested))
     return box
 
 
@@ -77,10 +98,44 @@ def _window(
     header = Adw.HeaderBar()
     header.set_title_widget(Gtk.Label(label=title))
     toolbar.add_top_bar(header)
+    # Keep the chrome quiet: spacing and groups should define hierarchy,
+    # not full-width separators.
+    try:
+        toolbar.set_top_bar_style(Adw.ToolbarStyle.FLAT)
+    except Exception:
+        pass
     win.set_content(toolbar)
     body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
     toolbar.set_content(body)
     return win, toolbar, body
+
+
+def _page_wrap(child: Gtk.Widget, *, top: int = PAGE_PAD, bottom: int = 8) -> Gtk.Box:
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    box.set_margin_top(top)
+    box.set_margin_bottom(bottom)
+    box.set_margin_start(PAGE_PAD)
+    box.set_margin_end(PAGE_PAD)
+    box.set_vexpand(True)
+    box.append(child)
+    return box
+
+
+def _compact_tab(label: str, icon_name: str, stack: Adw.ViewStack, page_name: str) -> Gtk.ToggleButton:
+    content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+    icon = Gtk.Image.new_from_icon_name(icon_name)
+    icon.set_pixel_size(16)
+    text = Gtk.Label(label=label)
+    content.append(icon)
+    content.append(text)
+    button = Gtk.ToggleButton()
+    button.set_child(content)
+    button.add_css_class("flat")
+    button.connect(
+        "toggled",
+        lambda btn: stack.set_visible_child_name(page_name) if btn.get_active() else None,
+    )
+    return button
 
 
 class AlertApp(Adw.Application):
@@ -108,11 +163,10 @@ class TextInputApp(Adw.Application):
 
     def do_activate(self) -> None:
         self.win, _toolbar, body = _window(self, self.title, 520, 190)
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        content.set_margin_top(22)
-        content.set_margin_bottom(8)
-        content.set_margin_start(22)
-        content.set_margin_end(22)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=CONTROL_GAP)
+        content.set_margin_top(PAGE_PAD)
+        content.set_margin_start(PAGE_PAD)
+        content.set_margin_end(PAGE_PAD)
         body.append(content)
         self.entry = Gtk.Entry()
         self.entry.set_placeholder_text(self.placeholder)
@@ -145,130 +199,135 @@ class PreferencesApp(Adw.Application):
         self.saved = False
 
     @staticmethod
-    def _entry(text: str = "") -> Gtk.Entry:
-        entry = Gtk.Entry(text=text)
-        entry.set_hexpand(True)
-        return entry
+    def _entry_row(title: str, text: str = "") -> Adw.EntryRow:
+        row = Adw.EntryRow(title=title)
+        row.set_text(text)
+        return row
 
     @staticmethod
-    def _spin(value: int, minimum: int = 1, maximum: int = 65535) -> Gtk.SpinButton:
-        spin = Gtk.SpinButton.new_with_range(minimum, maximum, 1)
-        spin.set_value(value)
-        return spin
+    def _switch_row(title: str, active: bool) -> Adw.SwitchRow:
+        row = Adw.SwitchRow(title=title)
+        row.set_active(active)
+        return row
 
     @staticmethod
-    def _grid() -> Gtk.Grid:
-        grid = Gtk.Grid(column_spacing=16, row_spacing=14)
-        grid.set_margin_top(22)
-        grid.set_margin_bottom(22)
-        grid.set_margin_start(26)
-        grid.set_margin_end(26)
-        grid.set_hexpand(True)
-        return grid
+    def _spin_row(title: str, value: int, minimum: int = 1, maximum: int = 65535) -> Adw.SpinRow:
+        adjustment = Gtk.Adjustment(value=value, lower=minimum, upper=maximum, step_increment=1, page_increment=10)
+        return Adw.SpinRow(title=title, adjustment=adjustment)
 
     @staticmethod
-    def _row(grid: Gtk.Grid, row: int, label: str, widget: Gtk.Widget) -> None:
-        grid.attach(
-            Gtk.Label(label=tr(label), halign=Gtk.Align.END, valign=Gtk.Align.CENTER),
-            0,
-            row,
-            1,
-            1,
-        )
-        widget.set_hexpand(True)
-        grid.attach(widget, 1, row, 1, 1)
+    def _group(title: str = "") -> Adw.PreferencesGroup:
+        group = Adw.PreferencesGroup()
+        if title:
+            group.set_title(title)
+        return group
+
+    @staticmethod
+    def _page(*groups: Adw.PreferencesGroup) -> Gtk.ScrolledWindow:
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=GROUP_GAP)
+        content.set_margin_top(PAGE_PAD)
+        content.set_margin_bottom(PAGE_PAD)
+        content.set_margin_start(PAGE_PAD)
+        content.set_margin_end(PAGE_PAD)
+        for group in groups:
+            content.append(group)
+        clamp = Adw.Clamp(maximum_size=720, tightening_threshold=620)
+        clamp.set_child(content)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_child(clamp)
+        return scroller
 
     def do_activate(self) -> None:
-        self.win, _toolbar, body = _window(self, tr("Preferences"), 760, 560)
+        self.win, _toolbar, body = _window(self, tr("Preferences"), 780, 600)
         stack = Adw.ViewStack()
         stack.set_vexpand(True)
-        switcher = Adw.ViewSwitcher()
-        switcher.set_stack(stack)
-        switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
-        switcher.set_margin_top(10)
-        switcher.set_margin_start(18)
-        switcher.set_margin_end(18)
-        body.append(switcher)
-        body.append(stack)
+        stack.add_named(self._general(), "general")
+        stack.add_named(self._advanced(), "advanced")
+        stack.add_named(self._http(), "http")
+        stack.add_named(self._network(), "network")
 
-        stack.add_titled_with_icon(
-            self._general(), "general", _t("General"), "preferences-system-symbolic"
-        )
-        stack.add_titled_with_icon(
-            self._advanced(), "advanced", _t("Advanced"), "preferences-other-symbolic"
-        )
-        stack.add_titled_with_icon(self._http(), "http", "HTTP", "network-server-symbolic")
-        stack.add_titled_with_icon(
-            self._network(), "network", _t("Network Interface"), "network-workgroup-symbolic"
-        )
+        tabs = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        tabs.set_halign(Gtk.Align.CENTER)
+        tabs.set_margin_top(14)
+        tabs.set_margin_bottom(4)
+        tab_specs = [
+            (_t("General"), "preferences-system-symbolic", "general"),
+            (_t("Advanced"), "preferences-other-symbolic", "advanced"),
+            ("HTTP", "network-server-symbolic", "http"),
+            (_t("Network Interface"), "network-workgroup-symbolic", "network"),
+        ]
+        first = None
+        previous = None
+        for label, icon_name, page_name in tab_specs:
+            button = _compact_tab(label, icon_name, stack, page_name)
+            if previous is not None:
+                button.set_group(previous)
+            else:
+                first = button
+            previous = button
+            tabs.append(button)
+        if first is not None:
+            first.set_active(True)
+
+        body.append(tabs)
+        body.append(stack)
         body.append(_footer(self._cancel, tr("Save"), self._save))
         self.win.connect("close-request", self._close)
         self.win.present()
 
     def _general(self) -> Gtk.Widget:
-        grid = self._grid()
-        self.autostart = Gtk.CheckButton(label=tr("Start At Login"))
-        self.autostart.set_active(autostart_enabled())
-        grid.attach(self.autostart, 0, 0, 2, 1)
-        self.show_mode = Gtk.CheckButton(label=tr("Show Running Proxy Mode In Status Bar"))
-        self.show_mode.set_active(self.config.show_mode_in_status_bar)
-        grid.attach(self.show_mode, 0, 1, 2, 1)
-        self.gfw_enabled = Gtk.CheckButton(label=tr("Use GFWList"))
-        self.gfw_enabled.set_active(self.config.gfwlist_enabled)
-        grid.attach(self.gfw_enabled, 0, 2, 2, 1)
-        self.gfw_url = self._entry(self.config.gfwlist_url)
-        self._row(grid, 3, "GFW List URL:", self.gfw_url)
-        return grid
+        behavior = self._group(_t("Proxy behavior"))
+        self.autostart = self._switch_row(tr("Start At Login"), autostart_enabled())
+        self.show_mode = self._switch_row(
+            tr("Show Running Proxy Mode In Status Bar"), self.config.show_mode_in_status_bar
+        )
+        self.gfw_enabled = self._switch_row(tr("Use GFWList"), self.config.gfwlist_enabled)
+        behavior.add(self.autostart)
+        behavior.add(self.show_mode)
+        behavior.add(self.gfw_enabled)
+
+        gfw = self._group("GFWList")
+        self.gfw_url = self._entry_row("GFW List URL", self.config.gfwlist_url)
+        gfw.add(self.gfw_url)
+        return self._page(behavior, gfw)
 
     def _advanced(self) -> Gtk.Widget:
-        grid = self._grid()
-        self.socks_addr = self._entry(self.config.socks_listen_address)
-        self._row(grid, 0, "Local Socks5 Listen Address:", self.socks_addr)
-        self.socks_port = self._spin(self.config.profile.local_port, 1024)
-        self._row(grid, 1, "Local Socks5 Listen Port:", self.socks_port)
-        self.pac_local = Gtk.CheckButton(label=tr("Local PAC Server Bind To Localhost"))
-        self.pac_local.set_active(self.config.pac_bind_localhost)
-        grid.attach(self.pac_local, 0, 2, 2, 1)
-        self.pac_port = self._spin(self.config.pac_port, 1024)
-        self._row(grid, 3, "Local PAC Server Listen Port:", self.pac_port)
-        self.timeout = self._spin(self.config.socks_timeout, 1, 3600)
-        self._row(grid, 4, "Timeout:", self.timeout)
-        self.udp = Gtk.CheckButton(label=tr("Enable Udp Replay"))
-        self.udp.set_active(self.config.udp_relay)
-        grid.attach(self.udp, 0, 5, 2, 1)
-        self.verbose = Gtk.CheckButton(label=tr("Enable Verbose Mode"))
-        self.verbose.set_active(self.config.verbose_mode)
-        grid.attach(self.verbose, 0, 6, 2, 1)
-        self.external_url = self._entry(self.config.external_pac_url)
-        self.external_url.set_placeholder_text("https://example.com/proxy.pac")
-        self._row(grid, 7, "External PAC URL:", self.external_url)
-        return grid
+        socks = self._group("SOCKS5")
+        self.socks_addr = self._entry_row(tr("Local Socks5 Listen Address:"), self.config.socks_listen_address)
+        self.socks_port = self._spin_row(tr("Local Socks5 Listen Port:"), self.config.profile.local_port, 1024)
+        self.timeout = self._spin_row(tr("Timeout:"), self.config.socks_timeout, 1, 3600)
+        self.udp = self._switch_row(tr("Enable Udp Replay"), self.config.udp_relay)
+        self.verbose = self._switch_row(tr("Enable Verbose Mode"), self.config.verbose_mode)
+        for row in (self.socks_addr, self.socks_port, self.timeout, self.udp, self.verbose):
+            socks.add(row)
+
+        pac = self._group(_t("PAC service"))
+        self.pac_local = self._switch_row(tr("Local PAC Server Bind To Localhost"), self.config.pac_bind_localhost)
+        self.pac_port = self._spin_row(tr("Local PAC Server Listen Port:"), self.config.pac_port, 1024)
+        self.external_url = self._entry_row(tr("External PAC URL:"), self.config.external_pac_url)
+        for row in (self.pac_local, self.pac_port, self.external_url):
+            pac.add(row)
+        return self._page(socks, pac)
 
     def _http(self) -> Gtk.Widget:
-        grid = self._grid()
-        self.http_enabled = Gtk.CheckButton(label=tr("HTTP Proxy Enable"))
-        self.http_enabled.set_active(self.config.http_enabled)
-        grid.attach(self.http_enabled, 0, 0, 2, 1)
-        self.http_addr = self._entry(self.config.http_listen_address)
-        self._row(grid, 1, "HTTP Proxy Listen Address:", self.http_addr)
-        self.http_port = self._spin(self.config.http_port, 1024)
-        self._row(grid, 2, "HTTP Proxy Listen Port:", self.http_port)
-        self.abp_url = self._entry(self.config.abp_template_url)
-        self._row(grid, 3, "ABP PAC engine URL", self.abp_url)
-        return grid
+        group = self._group(_t("HTTP service"))
+        self.http_enabled = self._switch_row(tr("HTTP Proxy Enable"), self.config.http_enabled)
+        self.http_addr = self._entry_row(tr("HTTP Proxy Listen Address:"), self.config.http_listen_address)
+        self.http_port = self._spin_row(tr("HTTP Proxy Listen Port:"), self.config.http_port, 1024)
+        self.abp_url = self._entry_row(tr("ABP PAC engine URL"), self.config.abp_template_url)
+        for row in (self.http_enabled, self.http_addr, self.http_port, self.abp_url):
+            group.add(row)
+        return self._page(group)
 
     def _network(self) -> Gtk.Widget:
-        grid = self._grid()
-        self.exceptions = self._entry(self.config.proxy_exceptions)
-        self._row(grid, 0, "Bypass proxy settings for these Hosts & Domains:", self.exceptions)
-        help_text = Gtk.Label(
-            label=_t("Separate multiple hosts, domains, or networks with commas."),
-            xalign=0,
-            wrap=True,
+        group = self._group(_t("Network exceptions"))
+        self.exceptions = self._entry_row(
+            tr("Bypass proxy settings for these Hosts & Domains:"), self.config.proxy_exceptions
         )
-        help_text.add_css_class("dim-label")
-        grid.attach(help_text, 1, 1, 1, 1)
-        return grid
+        group.add(self.exceptions)
+        group.set_description(_t("Separate multiple hosts, domains, or networks with commas."))
+        return self._page(group)
 
     def _save(self, *_args) -> None:
         try:
@@ -277,9 +336,9 @@ class PreferencesApp(Adw.Application):
                 parsed = urlparse(external)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     raise ValueError(tr("External PAC URL must be a valid HTTP or HTTPS URL."))
-            socks = self.socks_port.get_value_as_int()
-            pac = self.pac_port.get_value_as_int()
-            http = self.http_port.get_value_as_int()
+            socks = int(self.socks_port.get_value())
+            pac = int(self.pac_port.get_value())
+            http = int(self.http_port.get_value())
             if len({socks, pac, http}) != 3:
                 raise ValueError(_t("SOCKS5, PAC and HTTP proxy ports must be different."))
             c = self.config
@@ -291,7 +350,7 @@ class PreferencesApp(Adw.Application):
             c.profile.local_port = socks
             c.pac_bind_localhost = self.pac_local.get_active()
             c.pac_port = pac
-            c.socks_timeout = self.timeout.get_value_as_int()
+            c.socks_timeout = int(self.timeout.get_value())
             c.udp_relay = self.udp.get_active()
             c.verbose_mode = self.verbose.get_active()
             c.external_pac_url = external
@@ -326,10 +385,10 @@ class RulesApp(Adw.Application):
 
     def do_activate(self) -> None:
         self.win, _toolbar, body = _window(self, tr("Edit PAC User Rules…"), 720, 520)
-        wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        wrap.set_margin_top(18)
-        wrap.set_margin_start(18)
-        wrap.set_margin_end(18)
+        wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=CONTROL_GAP)
+        wrap.set_margin_top(PAGE_PAD)
+        wrap.set_margin_start(PAGE_PAD)
+        wrap.set_margin_end(PAGE_PAD)
         wrap.set_vexpand(True)
         body.append(wrap)
         hint = Gtk.Label(
@@ -342,6 +401,10 @@ class RulesApp(Adw.Application):
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
         self.text = Gtk.TextView(monospace=True)
+        self.text.set_top_margin(12)
+        self.text.set_bottom_margin(12)
+        self.text.set_left_margin(12)
+        self.text.set_right_margin(12)
         self.text.get_buffer().set_text("\n".join(self.config.custom_rules))
         scroller.set_child(self.text)
         wrap.append(scroller)
@@ -373,18 +436,22 @@ class LogsApp(Adw.Application):
         self.win, _toolbar, body = _window(self, tr("Proxy Logs"), 820, 560)
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
-        scroller.set_margin_top(12)
-        scroller.set_margin_start(16)
-        scroller.set_margin_end(16)
+        scroller.set_margin_top(PAGE_PAD)
+        scroller.set_margin_start(PAGE_PAD)
+        scroller.set_margin_end(PAGE_PAD)
         self.text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        self.text.set_top_margin(12)
+        self.text.set_bottom_margin(12)
+        self.text.set_left_margin(12)
+        self.text.set_right_margin(12)
         scroller.set_child(self.text)
         body.append(scroller)
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
-        footer.set_margin_top(12)
-        footer.set_margin_bottom(16)
-        footer.set_margin_start(16)
-        footer.set_margin_end(16)
+        footer.set_margin_top(18)
+        footer.set_margin_bottom(PAGE_PAD)
+        footer.set_margin_start(PAGE_PAD)
+        footer.set_margin_end(PAGE_PAD)
         footer.append(_button(tr("Clear"), self._clear))
         footer.append(_button(tr("Close"), lambda *_: self.quit(), suggested=True))
         body.append(footer)
@@ -420,20 +487,18 @@ class TextViewerApp(Adw.Application):
         win, _toolbar, body = _window(self, self.title, 720, 520)
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
-        scroller.set_margin_top(16)
-        scroller.set_margin_bottom(10)
-        scroller.set_margin_start(16)
-        scroller.set_margin_end(16)
+        scroller.set_margin_top(PAGE_PAD)
+        scroller.set_margin_start(PAGE_PAD)
+        scroller.set_margin_end(PAGE_PAD)
         text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        text.set_top_margin(12)
+        text.set_bottom_margin(12)
+        text.set_left_margin(12)
+        text.set_right_margin(12)
         text.get_buffer().set_text(self.value)
         scroller.set_child(text)
         body.append(scroller)
-        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        footer.set_halign(Gtk.Align.END)
-        footer.set_margin_bottom(16)
-        footer.set_margin_end(16)
-        footer.append(_button(tr("Close"), lambda *_: self.quit(), suggested=True))
-        body.append(footer)
+        body.append(_single_footer(tr("Close"), lambda *_: self.quit()))
         win.present()
 
 
@@ -446,10 +511,10 @@ class ShareApp(Adw.Application):
 
     def do_activate(self) -> None:
         win, _toolbar, body = _window(self, tr("Share Server Configuration…"), 500, 560)
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        content.set_margin_top(18)
-        content.set_margin_start(22)
-        content.set_margin_end(22)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.set_margin_top(PAGE_PAD)
+        content.set_margin_start(PAGE_PAD)
+        content.set_margin_end(PAGE_PAD)
         content.set_vexpand(True)
         label = Gtk.Label(label=self.name)
         label.add_css_class("title-2")
@@ -461,13 +526,15 @@ class ShareApp(Adw.Application):
             picture.set_vexpand(True)
             content.append(picture)
         entry = Gtk.Entry(text=self.url, editable=False)
+        entry.set_hexpand(True)
         content.append(entry)
         body.append(content)
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
-        footer.set_margin_top(10)
-        footer.set_margin_bottom(16)
-        footer.set_margin_end(18)
+        footer.set_margin_top(18)
+        footer.set_margin_bottom(PAGE_PAD)
+        footer.set_margin_start(PAGE_PAD)
+        footer.set_margin_end(PAGE_PAD)
         footer.append(_button(tr("Close"), lambda *_: self.quit()))
         footer.append(_button(_t("Copy URL"), self._copy, suggested=True))
         body.append(footer)
