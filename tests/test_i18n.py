@@ -9,7 +9,8 @@ def test_simplified_chinese_from_lang(monkeypatch):
     monkeypatch.delenv("LC_MESSAGES", raising=False)
     monkeypatch.setenv("LANG", "zh_CN.UTF-8")
     assert system_language() == "zh_CN"
-    assert tr("Preferences…") == "偏好设置…"
+    assert tr("Preferences…") == "偏好设置..."
+    assert tr("PAC Auto Mode") == "PAC自动模式"
 
 
 def test_traditional_chinese_from_language(monkeypatch):
