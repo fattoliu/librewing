@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
+import sys
 
 from . import app as legacy_app
 from . import app_beta
+from .config import AppConfig
 from .i18n import tr
 from .preferences_ng import PreferencesNgDialog
 from .runtime_ng import NgHttpProxyCore, NgPacServer, NgShadowsocksCore, NgSystemProxy
@@ -86,6 +89,36 @@ def _on_mode(self, item, mode: str) -> None:
     except Exception as exc:
         self.alert(f"Failed to change proxy mode:\n{exc}")
     self.rebuild_menu()
+
+
+def _on_edit_server(self, _item) -> None:
+    """Open the GTK4/libadwaita editor in a separate process.
+
+    GTK3 AppIndicator and GTK4 cannot safely coexist in one process, so the
+    modern window is intentionally isolated while the tray remains GTK3.
+    """
+    was_core_running = self.core.running()
+    was_http_running = self.http.running()
+    try:
+        result = subprocess.run([sys.executable, "-m", "ssxng.server_manager4"], check=False)
+        if result.returncode != 0:
+            return
+
+        fresh = AppConfig.load()
+        self.config.__dict__.update(fresh.__dict__)
+        if was_core_running:
+            self.core.restart()
+        if was_http_running:
+            if self.config.http_enabled:
+                self.http.restart()
+            else:
+                self.http.stop()
+        if was_core_running:
+            self.restore_mode()
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        self.rebuild_menu()
 
 
 def _on_preferences(self, _item) -> None:
@@ -211,6 +244,7 @@ def main() -> int:
     legacy_app.TrayApp.restore_mode = _restore_mode
     legacy_app.TrayApp.on_mode = _on_mode
     legacy_app.TrayApp.on_preferences = _on_preferences
+    legacy_app.TrayApp.on_edit_server = _on_edit_server
 
     app_beta._update_indicator_icon = _update_indicator_icon
     app_beta._rebuild_menu = _rebuild_menu
