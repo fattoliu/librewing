@@ -1,7 +1,7 @@
 import base64
 
-from ssxng.config import AppConfig, ServerProfile
 from ssxng import pac
+from ssxng.config import AppConfig, ServerProfile
 
 
 def test_parse_gfwlist_domains():
@@ -24,7 +24,14 @@ def test_custom_direct_rule_precedes_proxy(tmp_path, monkeypatch):
     result = pac.build_pac(config)
     assert 'dnsDomainIs(host, "mail.google.com")' in result
     assert 'dnsDomainIs(host, "google.com")' in result
-    assert f"PROXY 127.0.0.1:{config.http_port}" in result
+    assert f"SOCKS5 127.0.0.1:{config.profile.local_port}" in result
+
+
+def test_global_pac_proxies_everything_except_local_hosts():
+    config = AppConfig(profiles=[ServerProfile(server="example.com", password="x", local_port=1080)])
+    result = pac.build_global_pac(config)
+    assert 'return "DIRECT";' in result
+    assert 'return "SOCKS5 127.0.0.1:1080; DIRECT";' in result
 
 
 def test_abp_rules_preserve_complex_upstream_syntax(tmp_path, monkeypatch):
@@ -47,8 +54,6 @@ def test_abp_rules_preserve_complex_upstream_syntax(tmp_path, monkeypatch):
     )
     rules = pac.merged_abp_rules(config)
     assert rules[:3] == ["google.com", "||custom.example", "@@mail.google.com"]
-    # Mirrors ShadowsocksX-NG PACUtils.swift: a user rule without leading @/|
-    # suppresses the equivalent upstream rule after its marker prefix is stripped.
     assert "||google.com" not in rules
     assert "|https://example.com/path*" in rules
     assert "@@||direct.example.com" in rules
@@ -69,6 +74,6 @@ def test_build_pac_uses_cached_upstream_template(tmp_path, monkeypatch):
     monkeypatch.setattr(pac, "ABP_TEMPLATE_FILE", template_path)
     config = AppConfig(profiles=[ServerProfile(server="example.com", password="x")])
     result = pac.build_pac(config)
-    assert f'var proxy = "PROXY 127.0.0.1:{config.http_port}; DIRECT;";' in result
+    assert f'var proxy = "SOCKS5 127.0.0.1:{config.profile.local_port}; DIRECT;";' in result
     assert '"||google.com"' in result
     assert "__RULES__" not in result
