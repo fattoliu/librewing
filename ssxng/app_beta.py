@@ -15,8 +15,6 @@ from .screen_qr import ScreenQrError, scan_screen_payloads
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
-# These names map directly to the original ShadowsocksX-NG @2x menu-bar PNGs
-# installed by scripts/build-deb.sh.
 TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor/44x44/status"
 TRAY_ICONS = {
     "off": "shadowsocksx-ng-linux-disabled",
@@ -67,7 +65,6 @@ def _menu_item(label, callback=None, *, sensitive=True):
 
 
 def _update_indicator_icon(self) -> None:
-    """Use the original ShadowsocksX-NG paper-plane status artwork."""
     mode = self.config.mode if self.core.running() else "off"
     icon_name = TRAY_ICONS.get(mode, TRAY_ICONS["off"])
     try:
@@ -97,8 +94,18 @@ def _on_toggle_shadowsocks(self, _item) -> None:
     self.rebuild_menu()
 
 
+def _on_toggle_autostart(self, item) -> None:
+    enabled = bool(item.get_active())
+    try:
+        legacy_app.set_autostart(enabled, shutil.which("ssx-ng-linux"))
+        self.config.autostart = enabled
+        self.config.save()
+    except Exception as exc:
+        self.alert(str(exc))
+    self.rebuild_menu()
+
+
 def _rebuild_menu(self) -> None:
-    """Build a localized macOS ShadowsocksX-NG-style cascading tray menu."""
     Gtk = legacy_app.Gtk
     menu = Gtk.Menu()
 
@@ -144,6 +151,7 @@ def _rebuild_menu(self) -> None:
     servers.show_all()
     servers_item.set_submenu(servers)
     menu.append(servers_item)
+    menu.append(_menu_item(tr("Ping Server"), self.on_test_latency))
 
     menu.append(_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
     menu.append(_menu_item(tr("Import Server URL…"), self.on_import_url))
@@ -151,6 +159,10 @@ def _rebuild_menu(self) -> None:
     menu.append(_menu_item(tr("Share Server Configuration…"), self.on_share_server))
     menu.append(Gtk.SeparatorMenuItem())
 
+    autostart_item = Gtk.CheckMenuItem(label=tr("Start At Login"))
+    autostart_item.set_active(legacy_app.autostart_enabled())
+    autostart_item.connect("activate", self.on_toggle_autostart)
+    menu.append(autostart_item)
     menu.append(_menu_item(tr("Preferences…"), self.on_preferences))
     menu.append(_menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
     menu.append(_menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
@@ -289,7 +301,6 @@ def _on_help(self, _item) -> None:
 
 
 def _shutdown_runtime(self, *, quit_main: bool = True) -> None:
-    """Stop runtime services without overwriting the selected proxy mode."""
     if getattr(self, "_runtime_shutdown", False):
         if quit_main:
             legacy_app.Gtk.main_quit()
@@ -316,8 +327,6 @@ def _on_quit(self, _item) -> None:
 
 
 def _install_signal_handlers(app) -> None:
-    """Route SIGTERM/SIGINT through the same cleanup path as tray Quit."""
-
     def shutdown_from_signal() -> bool:
         app.shutdown_runtime()
         return False
@@ -335,6 +344,7 @@ def main() -> int:
     legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_delete_server = _on_delete_server
     legacy_app.TrayApp.on_toggle_shadowsocks = _on_toggle_shadowsocks
+    legacy_app.TrayApp.on_toggle_autostart = _on_toggle_autostart
     legacy_app.TrayApp.update_indicator_icon = _update_indicator_icon
     legacy_app.TrayApp.rebuild_menu = _rebuild_menu
     legacy_app.TrayApp.on_scan_screen_qr = _scan_screen_qr
