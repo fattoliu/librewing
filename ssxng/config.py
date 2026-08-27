@@ -18,6 +18,7 @@ LOG_FILE = APP_DIR / "app.log"
 
 DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
 DEFAULT_ABP_TEMPLATE_URL = "https://raw.githubusercontent.com/shadowsocks/ShadowsocksX-NG/develop/ShadowsocksX-NG/abp.js"
+DEFAULT_PROXY_EXCEPTIONS = "127.0.0.1, localhost, 192.168.0.0/16, 10.0.0.0/8, FE80::/64, ::1, FD00::/8"
 
 
 @dataclass
@@ -32,7 +33,7 @@ class ServerProfile:
     local_port: int = 1080
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ServerProfile":
+    def from_dict(cls, data: dict[str, Any]) -> ServerProfile:
         fields = cls.__dataclass_fields__
         return cls(**{k: v for k, v in data.items() if k in fields})
 
@@ -49,10 +50,23 @@ class AppConfig:
     abp_template_url: str = DEFAULT_ABP_TEMPLATE_URL
     gfwlist_enabled: bool = True
     gfwlist_updated_at: str = ""
+
+    # Mirrors the useful parts of ShadowsocksX-NG's Advanced/HTTP/PAC prefs.
+    socks_listen_address: str = "127.0.0.1"
+    socks_timeout: int = 60
+    udp_relay: bool = True
+    verbose_mode: bool = False
+    http_enabled: bool = True
+    http_listen_address: str = "127.0.0.1"
+    pac_bind_localhost: bool = True
+    external_pac_url: str = ""
+    proxy_exceptions: str = DEFAULT_PROXY_EXCEPTIONS
+    show_mode_in_status_bar: bool = True
+
     profiles: list[ServerProfile] = field(default_factory=lambda: [ServerProfile()])
 
     @classmethod
-    def load(cls) -> "AppConfig":
+    def load(cls) -> AppConfig:
         APP_DIR.mkdir(parents=True, exist_ok=True)
         if not CONFIG_FILE.exists():
             cfg = cls()
@@ -71,11 +85,11 @@ class AppConfig:
             if profiles:
                 cfg.profiles = profiles
             cfg.active_profile = min(max(int(cfg.active_profile), 0), len(cfg.profiles) - 1)
-            # 8119 was the temporary Privoxy-era default. Existing users who
-            # never customized it should transparently move to the NG-compatible
-            # HTTP proxy port 1087.
+            changed = False
             if int(cfg.http_port) == 8119:
                 cfg.http_port = 1087
+                changed = True
+            if changed:
                 cfg.save()
             return cfg
         except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
@@ -112,12 +126,12 @@ class AppConfig:
         runtime: dict[str, Any] = {
             "server": p.server,
             "server_port": int(p.server_port),
-            "local_address": "127.0.0.1",
+            "local_address": self.socks_listen_address or "127.0.0.1",
             "local_port": int(p.local_port),
             "password": p.password,
-            "timeout": 300,
+            "timeout": max(1, int(self.socks_timeout)),
             "method": p.method,
-            "mode": "tcp_and_udp",
+            "mode": "tcp_and_udp" if self.udp_relay else "tcp_only",
         }
         if p.plugin:
             runtime["plugin"] = resolve_plugin(p.plugin)
