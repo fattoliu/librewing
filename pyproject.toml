@@ -24,7 +24,7 @@ dev = [
 Repository = "https://github.com/fattoliu/shadowsocksx-ng-linux"
 
 [project.scripts]
-ssx-ng-linux = "ssxng.app:main"
+ssx-ng-linux = "ssxng.app_beta:main"
 ssx-ng-tool = "ssxng.cli:main"
 
 [tool.setuptools.packages.find]
@@ -37,7 +37,7 @@ addopts = "--strict-markers --strict-config"
 [tool.coverage.run]
 branch = true
 source = ["ssxng"]
-omit = ["ssxng/app.py"]
+omit = ["ssxng/app.py", "ssxng/app_beta.py", "ssxng/server_manager.py"]
 
 [tool.coverage.report]
 show_missing = true
