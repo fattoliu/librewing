@@ -14,7 +14,6 @@ CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
 GFWLIST_FILE = APP_DIR / "gfwlist.txt"
 ABP_TEMPLATE_FILE = APP_DIR / "abp.js"
-PRIVOXY_CONFIG_FILE = APP_DIR / "privoxy.conf"
 LOG_FILE = APP_DIR / "app.log"
 
 DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
@@ -43,7 +42,7 @@ class AppConfig:
     mode: str = "off"
     active_profile: int = 0
     pac_port: int = 8090
-    http_port: int = 8119
+    http_port: int = 1087
     autostart: bool = True
     custom_rules: list[str] = field(default_factory=list)
     gfwlist_url: str = DEFAULT_GFWLIST_URL
@@ -72,6 +71,12 @@ class AppConfig:
             if profiles:
                 cfg.profiles = profiles
             cfg.active_profile = min(max(int(cfg.active_profile), 0), len(cfg.profiles) - 1)
+            # 8119 was the temporary Privoxy-era default. Existing users who
+            # never customized it should transparently move to the NG-compatible
+            # HTTP proxy port 1087.
+            if int(cfg.http_port) == 8119:
+                cfg.http_port = 1087
+                cfg.save()
             return cfg
         except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
             cls._backup_invalid_config()
