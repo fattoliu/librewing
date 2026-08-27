@@ -5,12 +5,27 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
+from .i18n import tr
+
 
 _DIALOG_CSS = b"""
-/* Global dialog polish: compact, balanced and GNOME-friendly. */
+/* Unified dialog surface for normal dialogs, alerts, file choosers and About. */
 window.dialog,
+window.message-dialog,
+window.filechooser,
 dialog {
     background-color: @theme_bg_color;
+    border-radius: 12px;
+}
+
+/* GTK3 can otherwise repaint the bottom action area as a square rectangle.
+   Give the whole dialog stack matching lower corner radii. */
+window.dialog > box,
+window.message-dialog > box,
+window.filechooser > box,
+.dialog-vbox,
+.message-dialog .dialog-vbox {
+    border-radius: 12px;
 }
 
 .dialog-vbox,
@@ -33,6 +48,9 @@ dialog {
 .dialog-action-area {
     padding: 10px 18px 16px 18px;
     border-top: 1px solid alpha(@theme_fg_color, 0.10);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    background-color: @theme_bg_color;
 }
 
 .dialog-action-area button {
@@ -47,6 +65,11 @@ dialog {
     font-weight: 600;
 }
 
+.dialog-action-area button.destructive-action {
+    font-weight: 600;
+}
+
+/* Keep all form-style popups visually consistent. */
 entry,
 spinbutton,
 textview,
@@ -56,6 +79,19 @@ combobox button {
 
 frame {
     border-radius: 10px;
+}
+
+notebook > header {
+    padding: 6px 10px;
+}
+
+notebook > stack {
+    padding: 2px;
+}
+
+filechooser .dialog-action-area,
+.filechooser .dialog-action-area {
+    padding-top: 10px;
 }
 """
 
@@ -82,13 +118,16 @@ def install_dialog_styles() -> None:
     _provider = provider
 
 
-def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480) -> Gtk.Dialog:
-    """Apply consistent geometry and action styling to a GTK dialog."""
+def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480, resizable: bool = False) -> Gtk.Dialog:
+    """Apply consistent geometry, spacing and response styling to a GTK dialog."""
     dialog.set_border_width(0)
-    dialog.set_resizable(False)
-    dialog.set_default_size(default_width, -1)
+    dialog.set_resizable(resizable)
+    if default_width > 0:
+        dialog.set_default_size(default_width, -1)
     try:
         dialog.set_deletable(True)
+        dialog.set_modal(True)
+        dialog.set_skip_taskbar_hint(True)
     except Exception:
         pass
 
@@ -96,10 +135,24 @@ def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480) -> Gtk.Dialog
     if action_area is not None:
         action_area.set_spacing(8)
 
+    for response in (Gtk.ResponseType.OK, Gtk.ResponseType.ACCEPT, Gtk.ResponseType.YES, Gtk.ResponseType.APPLY):
+        try:
+            button = dialog.get_widget_for_response(response)
+            if button is not None:
+                button.get_style_context().add_class("suggested-action")
+        except Exception:
+            pass
+
+    for response in (Gtk.ResponseType.REJECT, Gtk.ResponseType.DELETE_EVENT):
+        try:
+            button = dialog.get_widget_for_response(response)
+            if button is not None:
+                button.get_style_context().add_class("destructive-action")
+        except Exception:
+            pass
+
     try:
-        ok = dialog.get_widget_for_response(Gtk.ResponseType.OK)
-        if ok is not None:
-            ok.get_style_context().add_class("suggested-action")
+        if dialog.get_widget_for_response(Gtk.ResponseType.OK) is not None:
             dialog.set_default_response(Gtk.ResponseType.OK)
     except Exception:
         pass
@@ -107,19 +160,17 @@ def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480) -> Gtk.Dialog
 
 
 def create_alert(message: str, kind=Gtk.MessageType.INFO) -> Gtk.MessageDialog:
-    """Create a compact application alert used for latency, status and errors."""
+    """Create the common alert used for latency, status, success and errors."""
     dialog = Gtk.MessageDialog(
         message_type=kind,
         buttons=Gtk.ButtonsType.OK,
         text=message,
     )
-    dialog.set_modal(True)
-    dialog.set_skip_taskbar_hint(True)
     polish_dialog(dialog, default_width=420)
     try:
         button = dialog.get_widget_for_response(Gtk.ResponseType.OK)
         if button is not None:
-            button.set_label("确定")
+            button.set_label(tr("OK"))
             button.get_style_context().add_class("suggested-action")
     except Exception:
         pass
