@@ -14,3 +14,6 @@ def test_launcher_uses_beta_app_with_server_manager():
     assert "TrayApp.on_edit_server = _on_edit_server" in beta
     assert "TrayApp.on_add_server = _on_add_server" in beta
     assert "TrayApp.on_delete_server = _on_delete_server" in beta
+    assert "legacy_app.HttpProxyCore =" not in beta
+    assert "was_http_running = self.http.running()" in beta
+    assert "self.http.restart()" in beta
