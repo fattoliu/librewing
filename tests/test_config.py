@@ -41,3 +41,21 @@ def test_load_ignores_unknown_fields(tmp_path, monkeypatch):
 
     assert loaded.mode == "pac"
     assert loaded.profile.name == "A"
+
+
+def test_load_migrates_legacy_privoxy_port_to_1087(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    config.CONFIG_FILE.write_text(
+        json.dumps({"http_port": 8119, "profiles": [{"name": "A"}]}),
+        encoding="utf-8",
+    )
+
+    loaded = config.AppConfig.load()
+
+    assert loaded.http_port == 1087
+    assert json.loads(config.CONFIG_FILE.read_text(encoding="utf-8"))["http_port"] == 1087
+
+
+def test_http_proxy_default_port_matches_ng_convention():
+    assert config.AppConfig().http_port == 1087
