@@ -6,25 +6,6 @@ from . import app as legacy_app
 from .server_manager import ServerManagerDialog
 
 
-class _NativeSocksHttpProxyCore:
-    """Compatibility shim: native SOCKS modes no longer need Privoxy."""
-
-    def __init__(self, config):
-        self.config = config
-
-    def start(self) -> None:
-        return
-
-    def stop(self) -> None:
-        return
-
-    def restart(self) -> None:
-        return
-
-    def running(self) -> bool:
-        return False
-
-
 def _open_server_manager(self, add_new: bool = False) -> None:
     dialog = ServerManagerDialog(self.config)
     if add_new:
@@ -33,9 +14,12 @@ def _open_server_manager(self, add_new: bool = False) -> None:
     if response == legacy_app.Gtk.ResponseType.OK:
         try:
             was_core_running = self.core.running()
+            was_http_running = self.http.running()
             dialog.apply()
             if was_core_running:
                 self.core.restart()
+            if was_http_running:
+                self.http.restart()
         except Exception as exc:
             self.alert(f"Failed to save server settings:\n{exc}")
     dialog.destroy()
@@ -55,11 +39,9 @@ def _on_delete_server(self, _item) -> None:
 
 
 def main() -> int:
-    # Keep the proven tray implementation, but disable the legacy Privoxy layer.
-    # SystemProxy and PacServer now implement both PAC and Global modes directly
-    # using explicit SOCKS5 PAC results.
-    legacy_app.HttpProxyCore = _NativeSocksHttpProxyCore
-
+    # Reuse the proven tray implementation and only replace the server-manager UI.
+    # The real HttpProxyCore from app/core must stay enabled so the built-in
+    # 127.0.0.1:1087 HTTP-to-SOCKS bridge runs alongside SOCKS and PAC modes.
     legacy_app.TrayApp.on_add_server = _on_add_server
     legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_delete_server = _on_delete_server
