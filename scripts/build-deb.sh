@@ -19,11 +19,6 @@ mkdir -p \
 
 cp -R "$ROOT/ssxng" "$PKG/usr/lib/shadowsocksx-ng-linux/"
 
-# These are the original ShadowsocksX-NG @2x status-bar PNG assets, vendored
-# in the source tree as base64 text so local package builds never need network
-# access. The active P/G/M icons keep the exact upstream silhouette and alpha
-# but are recolored to bright white for Ubuntu's dark top panel; the disabled
-# icon stays in the original muted gray so On/Off is visually obvious.
 declare -A ICONS=(
   [shadowsocksx-ng-linux]="menu_icon@2x.png"
   [shadowsocksx-ng-linux-disabled]="menu_icon_disabled@2x.png"
@@ -89,7 +84,7 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu
-Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
+Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-handy-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
 Description: Shadowsocks desktop client for Linux/Ubuntu
  Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, SIP003 plugins and GNOME proxy integration.
 EOF
