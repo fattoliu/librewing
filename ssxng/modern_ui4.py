@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -10,14 +9,39 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gtk  # noqa: E402
 
 from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig, LOG_FILE
-from .i18n import tr
+from .i18n import system_language, tr
 
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
+
+_EXTRA_I18N = {
+    "zh_CN": {
+        "General": "常规",
+        "Advanced": "高级",
+        "Network Interface": "网络接口",
+        "Import": "导入",
+        "Copy URL": "复制 URL",
+        "Separate multiple hosts, domains, or networks with commas.": "多个主机、域名或网段请使用逗号分隔。",
+        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 和 HTTP 代理端口不能相同。",
+    },
+    "zh_TW": {
+        "General": "一般",
+        "Advanced": "進階",
+        "Network Interface": "網路介面",
+        "Import": "匯入",
+        "Copy URL": "複製 URL",
+        "Separate multiple hosts, domains, or networks with commas.": "多個主機、網域或網段請使用逗號分隔。",
+        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 與 HTTP 代理連接埠不能相同。",
+    },
+}
+
+
+def _t(text: str) -> str:
+    return _EXTRA_I18N.get(system_language(), {}).get(text, tr(text))
 
 
 def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
@@ -40,7 +64,12 @@ def _footer(cancel_cb, primary_label: str, primary_cb) -> Gtk.Box:
     return box
 
 
-def _window(app: Adw.Application, title: str, width: int, height: int) -> tuple[Adw.ApplicationWindow, Adw.ToolbarView, Gtk.Box]:
+def _window(
+    app: Adw.Application,
+    title: str,
+    width: int,
+    height: int,
+) -> tuple[Adw.ApplicationWindow, Adw.ToolbarView, Gtk.Box]:
     win = Adw.ApplicationWindow(application=app)
     win.set_title(title)
     win.set_default_size(width, height)
@@ -90,7 +119,7 @@ class TextInputApp(Adw.Application):
         self.entry.set_hexpand(True)
         self.entry.connect("activate", self._save)
         content.append(self.entry)
-        body.append(_footer(self._cancel, tr("Import"), self._save))
+        body.append(_footer(self._cancel, _t("Import"), self._save))
         self.win.connect("close-request", self._close)
         self.win.present()
         self.entry.grab_focus()
@@ -139,26 +168,39 @@ class PreferencesApp(Adw.Application):
 
     @staticmethod
     def _row(grid: Gtk.Grid, row: int, label: str, widget: Gtk.Widget) -> None:
-        grid.attach(Gtk.Label(label=tr(label), halign=Gtk.Align.END, valign=Gtk.Align.CENTER), 0, row, 1, 1)
+        grid.attach(
+            Gtk.Label(label=tr(label), halign=Gtk.Align.END, valign=Gtk.Align.CENTER),
+            0,
+            row,
+            1,
+            1,
+        )
         widget.set_hexpand(True)
         grid.attach(widget, 1, row, 1, 1)
 
     def do_activate(self) -> None:
-        self.win, toolbar, body = _window(self, tr("Preferences"), 760, 560)
+        self.win, _toolbar, body = _window(self, tr("Preferences"), 760, 560)
         stack = Adw.ViewStack()
         stack.set_vexpand(True)
         switcher = Adw.ViewSwitcher()
         switcher.set_stack(stack)
         switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
-        header = toolbar.get_first_child()
-        if isinstance(header, Adw.HeaderBar):
-            header.set_title_widget(switcher)
+        switcher.set_margin_top(10)
+        switcher.set_margin_start(18)
+        switcher.set_margin_end(18)
+        body.append(switcher)
         body.append(stack)
 
-        stack.add_titled_with_icon(self._general(), "general", tr("General"), "preferences-system-symbolic")
-        stack.add_titled_with_icon(self._advanced(), "advanced", tr("Advanced"), "preferences-other-symbolic")
+        stack.add_titled_with_icon(
+            self._general(), "general", _t("General"), "preferences-system-symbolic"
+        )
+        stack.add_titled_with_icon(
+            self._advanced(), "advanced", _t("Advanced"), "preferences-other-symbolic"
+        )
         stack.add_titled_with_icon(self._http(), "http", "HTTP", "network-server-symbolic")
-        stack.add_titled_with_icon(self._network(), "network", tr("Network Interface"), "network-workgroup-symbolic")
+        stack.add_titled_with_icon(
+            self._network(), "network", _t("Network Interface"), "network-workgroup-symbolic"
+        )
         body.append(_footer(self._cancel, tr("Save"), self._save))
         self.win.connect("close-request", self._close)
         self.win.present()
@@ -219,7 +261,11 @@ class PreferencesApp(Adw.Application):
         grid = self._grid()
         self.exceptions = self._entry(self.config.proxy_exceptions)
         self._row(grid, 0, "Bypass proxy settings for these Hosts & Domains:", self.exceptions)
-        help_text = Gtk.Label(label=tr("Separate multiple hosts, domains, or networks with commas."), xalign=0, wrap=True)
+        help_text = Gtk.Label(
+            label=_t("Separate multiple hosts, domains, or networks with commas."),
+            xalign=0,
+            wrap=True,
+        )
         help_text.add_css_class("dim-label")
         grid.attach(help_text, 1, 1, 1, 1)
         return grid
@@ -235,7 +281,7 @@ class PreferencesApp(Adw.Application):
             pac = self.pac_port.get_value_as_int()
             http = self.http_port.get_value_as_int()
             if len({socks, pac, http}) != 3:
-                raise ValueError(tr("SOCKS5, PAC and HTTP proxy ports must be different."))
+                raise ValueError(_t("SOCKS5, PAC and HTTP proxy ports must be different."))
             c = self.config
             c.autostart = self.autostart.get_active()
             c.show_mode_in_status_bar = self.show_mode.get_active()
@@ -286,7 +332,11 @@ class RulesApp(Adw.Application):
         wrap.set_margin_end(18)
         wrap.set_vexpand(True)
         body.append(wrap)
-        hint = Gtk.Label(label=tr("One rule per line. Adblock/GFWList syntax is supported; @@ rules are DIRECT."), xalign=0, wrap=True)
+        hint = Gtk.Label(
+            label=tr("One rule per line. Adblock/GFWList syntax is supported; @@ rules are DIRECT."),
+            xalign=0,
+            wrap=True,
+        )
         hint.add_css_class("dim-label")
         wrap.append(hint)
         scroller = Gtk.ScrolledWindow()
@@ -343,7 +393,11 @@ class LogsApp(Adw.Application):
 
     def _refresh(self) -> None:
         try:
-            value = LOG_FILE.read_text(encoding="utf-8", errors="replace") if LOG_FILE.exists() else tr("No proxy log entries yet.")
+            value = (
+                LOG_FILE.read_text(encoding="utf-8", errors="replace")
+                if LOG_FILE.exists()
+                else tr("No proxy log entries yet.")
+            )
         except Exception as exc:
             value = str(exc)
         self.text.get_buffer().set_text(value)
@@ -415,14 +469,13 @@ class ShareApp(Adw.Application):
         footer.set_margin_bottom(16)
         footer.set_margin_end(18)
         footer.append(_button(tr("Close"), lambda *_: self.quit()))
-        footer.append(_button(tr("Copy URL"), self._copy, suggested=True))
+        footer.append(_button(_t("Copy URL"), self._copy, suggested=True))
         body.append(footer)
         self.win = win
         win.present()
 
     def _copy(self, *_args) -> None:
-        clipboard = self.win.get_clipboard()
-        clipboard.set(self.url)
+        self.win.get_clipboard().set(self.url)
 
 
 class AboutApp(Adw.Application):
