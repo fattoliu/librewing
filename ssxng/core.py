@@ -110,7 +110,7 @@ class ShadowsocksCore:
 
 
 class HttpProxyCore:
-    """Runs a private Privoxy instance that forwards HTTP(S) to local SOCKS5."""
+    """Legacy private Privoxy wrapper retained for compatibility with old installs."""
 
     def __init__(self, config: AppConfig):
         self.config = config
@@ -210,14 +210,17 @@ class SystemProxy:
         self.config.save()
 
     def global_mode(self) -> None:
-        port = self.config.http_port
-        self._gsettings("org.gnome.system.proxy", "mode", "'manual'")
+        # Global mode is SOCKS-only. Clear any HTTP/HTTPS values left by older
+        # Privoxy-based builds; otherwise GNOME-aware apps (notably Firefox)
+        # prefer the dead HTTP proxy on 8119 and never reach the working SOCKS5
+        # listener.
         self._gsettings("org.gnome.system.proxy", "use-same-proxy", "false")
         for schema in ("org.gnome.system.proxy.http", "org.gnome.system.proxy.https"):
-            self._gsettings(schema, "host", "'127.0.0.1'")
-            self._gsettings(schema, "port", str(port))
+            self._gsettings(schema, "host", "''")
+            self._gsettings(schema, "port", "0")
         self._gsettings("org.gnome.system.proxy.socks", "host", "'127.0.0.1'")
         self._gsettings("org.gnome.system.proxy.socks", "port", str(self.config.profile.local_port))
+        self._gsettings("org.gnome.system.proxy", "mode", "'manual'")
         self.config.mode = "global"
         self.config.save()
 
