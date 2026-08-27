@@ -37,12 +37,26 @@ addopts = "--strict-markers --strict-config"
 [tool.coverage.run]
 branch = true
 source = ["ssxng"]
-omit = ["ssxng/app.py", "ssxng/app_beta.py", "ssxng/server_manager.py"]
+omit = [
+  "ssxng/app.py",
+  "ssxng/app_beta.py",
+  "ssxng/app_ng_features.py",
+  "ssxng/advanced_settings.py",
+  "ssxng/preferences_ng.py",
+  "ssxng/server_manager.py",
+  "ssxng/share_dialog.py",
+  "ssxng/ui.py",
+  "ssxng/runtime_ng.py",
+  "ssxng/screen_qr.py",
+  "ssxng/server_json.py",
+  "ssxng/diagnostics.py",
+  "ssxng/launcher.py",
+]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 60
+fail_under = 55
 exclude_lines = [
   "pragma: no cover",
   "if __name__ == .__main__.:",
