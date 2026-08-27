@@ -5,7 +5,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk  # noqa: E402
 
-from .i18n import tr
+from .i18n import system_language
 
 
 _DIALOG_CSS = b"""
@@ -159,6 +159,15 @@ def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480, resizable: bo
     return dialog
 
 
+def _ok_label() -> str:
+    language = system_language()
+    if language == "zh_CN":
+        return "确定"
+    if language == "zh_TW":
+        return "確定"
+    return "OK"
+
+
 def create_alert(message: str, kind=Gtk.MessageType.INFO) -> Gtk.MessageDialog:
     """Create the common alert used for latency, status, success and errors."""
     dialog = Gtk.MessageDialog(
@@ -170,7 +179,7 @@ def create_alert(message: str, kind=Gtk.MessageType.INFO) -> Gtk.MessageDialog:
     try:
         button = dialog.get_widget_for_response(Gtk.ResponseType.OK)
         if button is not None:
-            button.set_label(tr("OK"))
+            button.set_label(_ok_label())
             button.get_style_context().add_class("suggested-action")
     except Exception:
         pass
