@@ -1,5 +1,4 @@
 import socket
-import threading
 
 from ssxng.config import AppConfig
 from ssxng.core import HttpProxyCore, _split_host_port
