@@ -9,36 +9,14 @@ from .i18n import system_language
 
 
 _DIALOG_CSS = b"""
-/* One visual language for every GTK3 dialog used by the application. */
-window.dialog,
-window.message-dialog,
-window.filechooser,
-window.background.dialog,
-window.background.message-dialog,
-dialog {
-    background-color: @theme_bg_color;
-    border-radius: 12px;
-}
-
-/* CSD decorations are drawn separately by GTK/Mutter. Giving decoration and
-   the root boxes the same radius prevents the action area from flattening the
-   two lower corners. */
-window.dialog decoration,
-window.message-dialog decoration,
-window.filechooser decoration,
-window.dialog > box,
-window.message-dialog > box,
-window.filechooser > box,
-.dialog-vbox,
-.message-dialog .dialog-vbox {
-    border-radius: 12px;
-}
-
-window.dialog decoration,
-window.message-dialog decoration,
-window.filechooser decoration {
-    box-shadow: 0 10px 28px alpha(black, 0.22);
-}
+/*
+ * Important: do NOT style the outer GtkWindow / CSD decoration radius here.
+ * Mutter owns the real window surface. Faking a second rounded surface in GTK
+ * causes rectangular backing layers to flash while windows are dragged.
+ *
+ * We only style controls and interior spacing; window corners, shadows and CSD
+ * are deliberately left to the GNOME theme/compositor.
+ */
 
 .dialog-vbox,
 .message-dialog .dialog-vbox {
@@ -56,9 +34,7 @@ window.filechooser decoration {
 .dialog-action-area {
     padding: 10px 18px 16px 18px;
     border-top: 1px solid alpha(@theme_fg_color, 0.10);
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-    background-color: @theme_bg_color;
+    background-color: transparent;
 }
 
 .dialog-action-area button {
@@ -122,7 +98,7 @@ _provider: Gtk.CssProvider | None = None
 
 
 def install_dialog_styles() -> None:
-    """Install application-wide GTK3 dialog styles once."""
+    """Install application-wide GTK3 interior dialog styles once."""
     global _provider
     if _provider is not None:
         return
