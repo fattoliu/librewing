@@ -90,12 +90,13 @@ def cleanup_managed_orphan_ss_local(timeout: float = 1.5) -> list[int]:
         except PermissionError:
             continue
 
+    # Always re-check once after SIGTERM, even when timeout=0. This prevents a
+    # needless SIGKILL when the process has already disappeared immediately.
+    remaining = {pid for pid in pids if Path(f"/proc/{pid}").exists()}
     deadline = time.monotonic() + max(0.0, timeout)
-    remaining = set(pids)
     while remaining and time.monotonic() < deadline:
+        time.sleep(0.05)
         remaining = {pid for pid in remaining if Path(f"/proc/{pid}").exists()}
-        if remaining:
-            time.sleep(0.05)
 
     for pid in remaining:
         try:
