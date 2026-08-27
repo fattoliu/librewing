@@ -21,7 +21,10 @@ cd "$ROOT"
 bash scripts/build-deb.sh >/dev/null
 DEB="$(ls -t dist/shadowsocksx-ng-linux_*.deb | head -n1)"
 
-sudo apt install -y "./$DEB"
+# During development the package version may stay the same while its contents
+# change. --reinstall ensures the freshly rebuilt local .deb replaces the
+# currently installed files instead of apt saying "already newest".
+sudo apt install -y --reinstall "./$DEB"
 
 # Remove only stale launchers created by older pip --user based installers.
 # Never remove arbitrary user Python packages or run autoremove here.
