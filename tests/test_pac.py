@@ -15,16 +15,17 @@ def test_parse_gfwlist_domains():
 
 def test_custom_direct_rule_precedes_proxy(tmp_path, monkeypatch):
     monkeypatch.setattr(pac, "GFWLIST_FILE", tmp_path / "gfwlist.txt")
-    monkeypatch.setattr(pac, "ABP_TEMPLATE_FILE", tmp_path / "abp.js")
     config = AppConfig(
         custom_rules=["google.com", "@@mail.google.com"],
         gfwlist_enabled=False,
         profiles=[ServerProfile(server="example.com", password="x")],
     )
     result = pac.build_pac(config)
-    assert 'dnsDomainIs(host, "mail.google.com")' in result
-    assert 'dnsDomainIs(host, "google.com")' in result
+    assert '"google.com"' in result
+    assert '"mail.google.com"' in result
     assert f"SOCKS5 127.0.0.1:{config.profile.local_port}" in result
+    assert "domainMatches(directDomains, host)" in result
+    assert result.index("domainMatches(directDomains, host)") < result.index("domainMatches(proxyDomains, host)")
 
 
 def test_global_pac_proxies_everything_except_local_hosts():
@@ -60,20 +61,41 @@ def test_abp_rules_preserve_complex_upstream_syntax(tmp_path, monkeypatch):
     assert "/blocked-[0-9]+/" in rules
 
 
-def test_build_pac_uses_cached_upstream_template(tmp_path, monkeypatch):
+def test_compact_pac_contains_gfwlist_domains_and_whitelist(tmp_path, monkeypatch):
+    raw = "\n".join(
+        [
+            "[AutoProxy 0.2.9]",
+            "||google.com",
+            "||youtube.com",
+            "@@||dl.google.com",
+            "! comment",
+        ]
+    ).encode()
     gfw_path = tmp_path / "gfwlist.txt"
-    gfw_path.write_bytes(base64.b64encode(b"||google.com\n"))
-    template_path = tmp_path / "abp.js"
-    template_path.write_text(
-        'var proxy = "SOCKS5 __SOCKS5ADDR__:__SOCKS5PORT__; SOCKS __SOCKS5ADDR__:__SOCKS5PORT__; DIRECT;";\n'
-        "var rules = __RULES__;\n"
-        "function FindProxyForURL(url, host) { return proxy; }\n",
-        encoding="utf-8",
-    )
+    gfw_path.write_bytes(base64.b64encode(raw))
     monkeypatch.setattr(pac, "GFWLIST_FILE", gfw_path)
-    monkeypatch.setattr(pac, "ABP_TEMPLATE_FILE", template_path)
-    config = AppConfig(profiles=[ServerProfile(server="example.com", password="x")])
+    config = AppConfig(
+        gfwlist_enabled=True,
+        profiles=[ServerProfile(server="example.com", password="x", local_port=1080)],
+    )
     result = pac.build_pac(config)
-    assert f'var proxy = "SOCKS5 127.0.0.1:{config.profile.local_port}; DIRECT;";' in result
-    assert '"||google.com"' in result
+    assert result.startswith("// ShadowsocksX-NG Linux compact PAC")
+    assert '"google.com"' in result
+    assert '"youtube.com"' in result
+    assert '"dl.google.com"' in result
+    assert 'return "SOCKS5 127.0.0.1:1080; DIRECT";' in result
+    assert "function contains(sorted, value)" in result
+    assert "function domainMatches(sorted, host)" in result
+
+
+def test_compact_pac_does_not_embed_legacy_abp_runtime(tmp_path, monkeypatch):
+    monkeypatch.setattr(pac, "GFWLIST_FILE", tmp_path / "gfwlist.txt")
+    config = AppConfig(
+        custom_rules=["||google.com"],
+        gfwlist_enabled=False,
+        profiles=[ServerProfile(server="example.com", password="x")],
+    )
+    result = pac.build_pac(config)
+    assert "defaultMatcher" not in result
+    assert "Filter.fromText" not in result
     assert "__RULES__" not in result
