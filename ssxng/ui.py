@@ -10,16 +10,36 @@ from .i18n import system_language
 
 _DIALOG_CSS = b"""
 /*
- * Important: do NOT style the outer GtkWindow / CSD decoration radius here.
- * Mutter owns the real window surface. Faking a second rounded surface in GTK
- * causes rectangular backing layers to flash while windows are dragged.
+ * GTK3 rounded-window implementation.
  *
- * We only style controls and interior spacing; window corners, shadows and CSD
- * are deliberately left to the GNOME theme/compositor.
+ * The important part is that the toplevel uses an RGBA visual (configured by
+ * polish_dialog).  Without an alpha-capable surface, CSS border-radius only
+ * rounds the painted foreground while an opaque rectangular backing surface
+ * remains behind it and flashes during compositor moves.
  */
+window.ssx-rounded-dialog,
+window.background.ssx-rounded-dialog {
+    background-color: transparent;
+    border-radius: 12px;
+}
 
-.dialog-vbox,
-.message-dialog .dialog-vbox {
+window.ssx-rounded-dialog decoration {
+    border-radius: 12px;
+}
+
+/* GtkDialog's main child is the actual visible window body.  Paint that body,
+   rather than the transparent toplevel surface, so all four corners really
+   expose alpha outside the radius. */
+window.ssx-rounded-dialog > box,
+window.ssx-rounded-dialog .dialog-vbox {
+    background-color: @theme_bg_color;
+}
+
+window.ssx-rounded-dialog > box {
+    border-radius: 12px;
+}
+
+window.ssx-rounded-dialog .dialog-vbox {
     padding: 20px 22px 12px 22px;
 }
 
@@ -31,10 +51,12 @@ _DIALOG_CSS = b"""
     font-size: 14px;
 }
 
-.dialog-action-area {
+window.ssx-rounded-dialog .dialog-action-area {
     padding: 10px 18px 16px 18px;
     border-top: 1px solid alpha(@theme_fg_color, 0.10);
-    background-color: transparent;
+    background-color: @theme_bg_color;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
 
 .dialog-action-area button {
@@ -76,7 +98,6 @@ filechooser .dialog-action-area,
     padding-top: 10px;
 }
 
-/* Utility classes used by the larger custom dialogs. */
 .ssx-dialog-title {
     font-size: 16px;
     font-weight: 600;
@@ -98,7 +119,7 @@ _provider: Gtk.CssProvider | None = None
 
 
 def install_dialog_styles() -> None:
-    """Install application-wide GTK3 interior dialog styles once."""
+    """Install application-wide GTK3 dialog styles once."""
     global _provider
     if _provider is not None:
         return
@@ -117,6 +138,23 @@ def install_dialog_styles() -> None:
     _provider = provider
 
 
+def _enable_rgba_surface(window: Gtk.Window, _old_screen=None) -> None:
+    """Give a GTK3 toplevel a real alpha-capable surface for rounded corners."""
+    try:
+        screen = window.get_screen()
+        if screen is None:
+            return
+        visual = screen.get_rgba_visual()
+        if visual is not None and screen.is_composited():
+            window.set_visual(visual)
+            window.set_app_paintable(True)
+    except Exception:
+        # Keep the application usable on unusual X11/remote sessions that do
+        # not expose an RGBA visual; the theme will simply fall back to square
+        # compositor-safe corners there.
+        pass
+
+
 def polish_dialog(
     dialog: Gtk.Dialog,
     *,
@@ -124,7 +162,19 @@ def polish_dialog(
     default_height: int = -1,
     resizable: bool = False,
 ) -> Gtk.Dialog:
-    """Apply common geometry, spacing and response styling to any GTK dialog."""
+    """Apply common geometry, spacing and stable GTK3 rounded-window styling."""
+    install_dialog_styles()
+
+    # This is the crucial difference from the old CSS-only attempt: the actual
+    # native GdkWindow has an alpha channel, so the pixels outside the radius do
+    # not leave an opaque rectangular backing layer while Mutter moves it.
+    _enable_rgba_surface(dialog)
+    try:
+        dialog.connect("screen-changed", _enable_rgba_surface)
+    except Exception:
+        pass
+    dialog.get_style_context().add_class("ssx-rounded-dialog")
+
     dialog.set_border_width(0)
     dialog.set_resizable(resizable)
     if default_width > 0 or default_height > 0:
