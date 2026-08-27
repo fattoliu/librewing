@@ -6,12 +6,7 @@ VERSION="${VERSION:-0.2.0}"
 ARCH="${ARCH:-amd64}"
 PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
-
-# Pin the upstream revision so the tray artwork is the exact ShadowsocksX-NG
-# asset set, not a hand-drawn approximation that may drift over time.
-SSXNG_ASSET_REV="2357b07fdc2b8c82b7d40e73a9e4b20ca400c8f7"
-SSXNG_ASSET_BASE="https://raw.githubusercontent.com/shadowsocks/ShadowsocksX-NG/${SSXNG_ASSET_REV}/ShadowsocksX-NG/images"
-ICON_CACHE="$ROOT/dist/upstream-icons"
+ICON_ASSETS="$ROOT/assets/upstream"
 
 rm -rf "$PKG"
 mkdir -p \
@@ -19,18 +14,13 @@ mkdir -p \
   "$PKG/usr/bin" \
   "$PKG/usr/lib/shadowsocksx-ng-linux" \
   "$PKG/usr/share/applications" \
-  "$PKG/usr/share/icons/hicolor/44x44/status" \
-  "$ICON_CACHE"
+  "$PKG/usr/share/icons/hicolor/44x44/status"
 
 cp -R "$ROOT/ssxng" "$PKG/usr/lib/shadowsocksx-ng-linux/"
 
-if ! command -v curl >/dev/null 2>&1; then
-  echo "curl is required to fetch the pinned ShadowsocksX-NG tray icon assets." >&2
-  exit 1
-fi
-
-# Use the official @2x status-bar assets directly. GNOME/AppIndicator scales
-# the source for the panel DPI, while the original P/G/M glyph stays legible.
+# These are the original ShadowsocksX-NG @2x status-bar PNG assets, vendored
+# in the source tree as base64 text so local package builds never need network
+# access. Decode them directly into the Debian package at build time.
 declare -A ICONS=(
   [shadowsocksx-ng-linux]="menu_icon@2x.png"
   [shadowsocksx-ng-linux-disabled]="menu_icon_disabled@2x.png"
@@ -41,14 +31,13 @@ declare -A ICONS=(
 
 for icon_name in "${!ICONS[@]}"; do
   upstream_name="${ICONS[$icon_name]}"
-  cached="$ICON_CACHE/$upstream_name"
-  if [ ! -s "$cached" ]; then
-    echo "Fetching upstream tray icon: $upstream_name" >&2
-    curl -fL --retry 3 --connect-timeout 10 \
-      "$SSXNG_ASSET_BASE/$upstream_name" \
-      -o "$cached"
+  encoded="$ICON_ASSETS/$upstream_name.b64"
+  if [ ! -s "$encoded" ]; then
+    echo "Missing vendored tray icon asset: $encoded" >&2
+    exit 1
   fi
-  cp "$cached" "$PKG/usr/share/icons/hicolor/44x44/status/$icon_name.png"
+  base64 --decode "$encoded" > \
+    "$PKG/usr/share/icons/hicolor/44x44/status/$icon_name.png"
 done
 
 cat > "$PKG/usr/bin/ssx-ng-linux" <<'EOF'
