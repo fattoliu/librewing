@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import ipaddress
 import os
+import select
 import shutil
 import signal
 import socket
+import socketserver
+import struct
 import subprocess
+import threading
 import time
-from pathlib import Path
 from typing import TextIO
+from urllib.parse import urlsplit
 
-from .config import AppConfig, LOG_FILE, PRIVOXY_CONFIG_FILE
+from .config import AppConfig, LOG_FILE
 
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -109,86 +114,222 @@ class ShadowsocksCore:
         return bool(self.process and self.process.poll() is None)
 
 
+def _recv_exact(sock: socket.socket, size: int) -> bytes:
+    data = bytearray()
+    while len(data) < size:
+        chunk = sock.recv(size - len(data))
+        if not chunk:
+            raise OSError("unexpected EOF")
+        data.extend(chunk)
+    return bytes(data)
+
+
+def _socks5_connect(proxy_host: str, proxy_port: int, target_host: str, target_port: int) -> socket.socket:
+    sock = socket.create_connection((proxy_host, int(proxy_port)), timeout=15)
+    sock.settimeout(15)
+    try:
+        sock.sendall(b"\x05\x01\x00")
+        if _recv_exact(sock, 2) != b"\x05\x00":
+            raise OSError("SOCKS5 proxy rejected no-authentication method")
+
+        try:
+            ip = ipaddress.ip_address(target_host.strip("[]"))
+        except ValueError:
+            encoded = target_host.encode("idna")
+            if len(encoded) > 255:
+                raise OSError("target hostname is too long")
+            address = b"\x03" + bytes([len(encoded)]) + encoded
+        else:
+            if ip.version == 4:
+                address = b"\x01" + ip.packed
+            else:
+                address = b"\x04" + ip.packed
+
+        sock.sendall(b"\x05\x01\x00" + address + struct.pack("!H", int(target_port)))
+        head = _recv_exact(sock, 4)
+        if head[0] != 5 or head[1] != 0:
+            raise OSError(f"SOCKS5 CONNECT failed with reply code {head[1]}")
+        atyp = head[3]
+        if atyp == 1:
+            _recv_exact(sock, 4)
+        elif atyp == 4:
+            _recv_exact(sock, 16)
+        elif atyp == 3:
+            _recv_exact(sock, _recv_exact(sock, 1)[0])
+        else:
+            raise OSError("invalid SOCKS5 address type")
+        _recv_exact(sock, 2)
+        sock.settimeout(None)
+        return sock
+    except Exception:
+        sock.close()
+        raise
+
+
+def _relay(left: socket.socket, right: socket.socket) -> None:
+    sockets = [left, right]
+    while True:
+        readable, _, _ = select.select(sockets, [], [], 60)
+        if not readable:
+            continue
+        for source in readable:
+            try:
+                data = source.recv(65536)
+            except OSError:
+                return
+            if not data:
+                return
+            target = right if source is left else left
+            try:
+                target.sendall(data)
+            except OSError:
+                return
+
+
+def _split_host_port(value: str, default_port: int) -> tuple[str, int]:
+    value = value.strip()
+    if value.startswith("["):
+        end = value.find("]")
+        if end < 0:
+            raise ValueError("invalid IPv6 host")
+        host = value[1:end]
+        rest = value[end + 1 :]
+        return host, int(rest[1:]) if rest.startswith(":") else default_port
+    if value.count(":") == 1:
+        host, port = value.rsplit(":", 1)
+        return host, int(port)
+    return value, default_port
+
+
+class _ThreadingHTTPProxy(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 class HttpProxyCore:
-    """Legacy private Privoxy wrapper retained for compatibility with old installs."""
+    """Small HTTP/HTTPS proxy that tunnels traffic through the local SOCKS5 listener.
+
+    This replaces the old Privoxy dependency. HTTPS uses CONNECT; plain HTTP
+    absolute-form requests are rewritten to origin-form before being sent over
+    SOCKS5. The bridge is intentionally local-only and requires no root access.
+    """
 
     def __init__(self, config: AppConfig):
         self.config = config
-        self.process: subprocess.Popen[str] | None = None
-        self.log_handle: TextIO | None = None
-
-    def find_privoxy(self) -> str:
-        path = shutil.which("privoxy")
-        if not path:
-            raise RuntimeError("privoxy not found. Install the privoxy package first.")
-        return path
-
-    def write_config(self) -> Path:
-        p = self.config.profile
-        PRIVOXY_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PRIVOXY_CONFIG_FILE.write_text(
-            "\n".join(
-                [
-                    f"listen-address  127.0.0.1:{self.config.http_port}",
-                    "toggle  1",
-                    "enable-remote-toggle  0",
-                    "enable-edit-actions  0",
-                    "enforce-blocks  0",
-                    "buffer-limit  4096",
-                    "forwarded-connect-retries  2",
-                    "accept-intercepted-requests  0",
-                    "allow-cgi-request-crunching  0",
-                    "split-large-forms  0",
-                    "keep-alive-timeout  300",
-                    "tolerate-pipelining  1",
-                    "socket-timeout  300",
-                    f"forward-socks5t / 127.0.0.1:{p.local_port} .",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
-        return PRIVOXY_CONFIG_FILE
+        self.server: _ThreadingHTTPProxy | None = None
+        self.thread: threading.Thread | None = None
 
     def start(self) -> None:
         if self.running():
             return
         if not port_available(self.config.http_port):
             raise RuntimeError(f"Local HTTP proxy port {self.config.http_port} is already in use.")
-        config = self.write_config()
-        self.log_handle = _open_log("privoxy")
-        self.process = subprocess.Popen(
-            [self.find_privoxy(), "--no-daemon", str(config)],
-            stdout=self.log_handle,
-            stderr=subprocess.STDOUT,
-            text=True,
-            start_new_session=True,
-        )
-        time.sleep(0.2)
-        if self.process.poll() is not None:
-            code = self.process.returncode
-            self.process = None
-            self._close_log()
-            raise RuntimeError(
-                f"Privoxy exited immediately with code {code}. Check {LOG_FILE} for details."
-            )
 
-    def _close_log(self) -> None:
-        if self.log_handle:
-            self.log_handle.close()
-            self.log_handle = None
+        config = self.config
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self) -> None:
+                client: socket.socket = self.request
+                client.settimeout(15)
+                data = bytearray()
+                while b"\r\n\r\n" not in data:
+                    chunk = client.recv(65536)
+                    if not chunk:
+                        return
+                    data.extend(chunk)
+                    if len(data) > 1024 * 1024:
+                        client.sendall(b"HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n")
+                        return
+
+                header_end = data.index(b"\r\n\r\n") + 4
+                header = bytes(data[:header_end])
+                body_prefix = bytes(data[header_end:])
+                lines = header.decode("iso-8859-1").split("\r\n")
+                try:
+                    method, target, version = lines[0].split(" ", 2)
+                except ValueError:
+                    client.sendall(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n")
+                    return
+
+                try:
+                    if method.upper() == "CONNECT":
+                        host, port = _split_host_port(target, 443)
+                        remote = _socks5_connect("127.0.0.1", config.profile.local_port, host, port)
+                        try:
+                            client.sendall(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: ShadowsocksX-NG-Linux\r\n\r\n")
+                            if body_prefix:
+                                remote.sendall(body_prefix)
+                            client.settimeout(None)
+                            _relay(client, remote)
+                        finally:
+                            remote.close()
+                        return
+
+                    parsed = urlsplit(target)
+                    host_header = next(
+                        (line[5:].strip() for line in lines[1:] if line.lower().startswith("host:")),
+                        "",
+                    )
+                    host = parsed.hostname
+                    port = parsed.port
+                    if not host:
+                        host, port = _split_host_port(host_header, 80)
+                    else:
+                        port = port or (443 if parsed.scheme == "https" else 80)
+                    if not host:
+                        raise ValueError("missing target host")
+
+                    path = parsed.path or "/"
+                    if parsed.query:
+                        path += "?" + parsed.query
+                    clean_headers = [
+                        line
+                        for line in lines[1:]
+                        if line and not line.lower().startswith("proxy-connection:")
+                    ]
+                    forwarded = (
+                        f"{method} {path} {version}\r\n"
+                        + "\r\n".join(clean_headers)
+                        + "\r\n\r\n"
+                    ).encode("iso-8859-1") + body_prefix
+
+                    remote = _socks5_connect("127.0.0.1", config.profile.local_port, host, int(port))
+                    try:
+                        remote.sendall(forwarded)
+                        client.settimeout(None)
+                        _relay(client, remote)
+                    finally:
+                        remote.close()
+                except Exception:
+                    try:
+                        client.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
+                    except OSError:
+                        pass
+
+        try:
+            self.server = _ThreadingHTTPProxy(("127.0.0.1", self.config.http_port), Handler)
+            self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            self.thread.start()
+        except Exception:
+            if self.server:
+                self.server.server_close()
+            self.server = None
+            self.thread = None
+            raise
 
     def stop(self) -> None:
-        _stop_process(self.process)
-        self.process = None
-        self._close_log()
+        if self.server:
+            self.server.shutdown()
+            self.server.server_close()
+        self.server = None
+        self.thread = None
 
     def restart(self) -> None:
         self.stop()
         self.start()
 
     def running(self) -> bool:
-        return bool(self.process and self.process.poll() is None)
+        return bool(self.server and self.thread and self.thread.is_alive())
 
 
 class SystemProxy:
