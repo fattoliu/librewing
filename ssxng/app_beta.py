@@ -5,6 +5,7 @@ import sys
 
 from . import app as legacy_app
 from .i18n import tr
+from .screen_qr import ScreenQrError, scan_screen_payloads
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
@@ -140,7 +141,7 @@ def _rebuild_menu(self) -> None:
     servers_item.set_submenu(servers)
     menu.append(servers_item)
 
-    menu.append(_menu_item(tr("Scan QR Code on Screen"), sensitive=False))
+    menu.append(_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
     menu.append(_menu_item(tr("Import Server URL…"), self.on_import_url))
     menu.append(_menu_item(tr("Share Server Configuration…"), self.on_copy_url))
     menu.append(Gtk.SeparatorMenuItem())
@@ -161,6 +162,23 @@ def _rebuild_menu(self) -> None:
 
     menu.show_all()
     self.indicator.set_menu(menu)
+
+
+def _scan_screen_qr(self, _item) -> None:
+    try:
+        payloads = scan_screen_payloads()
+    except ScreenQrError as exc:
+        self.alert(f"Screen QR scan failed:\n{exc}")
+        return
+
+    profiles = legacy_app.import_profiles_from_text("\n".join(payloads), self.config.profiles)
+    count = self._append_imported(profiles)
+    if count:
+        self.alert(f"Imported {count} server{'s' if count != 1 else ''} from screen QR code.", legacy_app.Gtk.MessageType.INFO)
+    elif payloads:
+        self.alert("QR code found, but it did not contain a new valid ss:// server URL.", legacy_app.Gtk.MessageType.INFO)
+    else:
+        self.alert("No QR code was found on the screen.", legacy_app.Gtk.MessageType.INFO)
 
 
 def _copy_terminal_proxy_command(self, _item) -> None:
@@ -237,6 +255,7 @@ def main() -> int:
     legacy_app.TrayApp.on_toggle_shadowsocks = _on_toggle_shadowsocks
     legacy_app.TrayApp.update_indicator_icon = _update_indicator_icon
     legacy_app.TrayApp.rebuild_menu = _rebuild_menu
+    legacy_app.TrayApp.on_scan_screen_qr = _scan_screen_qr
     legacy_app.TrayApp.on_copy_terminal_proxy_command = _copy_terminal_proxy_command
     legacy_app.TrayApp.on_check_updates = _on_check_updates
     legacy_app.TrayApp.on_help = _on_help
