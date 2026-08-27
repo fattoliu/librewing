@@ -33,12 +33,10 @@ window.filechooser > box,
     padding: 20px 22px 12px 22px;
 }
 
-.message-dialog box {
-    spacing: 14px;
-}
-
+/* Gtk CSS does not support a generic `spacing` property. Widget spacing is
+   configured from Python; CSS only handles margins/padding. */
 .message-dialog image {
-    margin-right: 10px;
+    margin-right: 14px;
 }
 
 .message-dialog label {
