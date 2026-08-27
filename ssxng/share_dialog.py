@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from gi.repository import GdkPixbuf
+
 from . import app as legacy_app
 from .share import build_ss_url
 
@@ -63,7 +65,7 @@ class ShareServerDialog(legacy_app.Gtk.Dialog):
             )
             if result.returncode != 0 or not path.exists():
                 return None
-            pixbuf = legacy_app.GdkPixbuf.Pixbuf.new_from_file(str(path))
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(path))
             return legacy_app.Gtk.Image.new_from_pixbuf(pixbuf)
 
     def copy_url(self) -> None:
