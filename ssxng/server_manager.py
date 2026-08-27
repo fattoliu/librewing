@@ -10,6 +10,7 @@ from gi.repository import Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
 from .i18n import tr
+from .ui import create_alert, polish_dialog
 
 CIPHERS = [
     "aes-256-gcm",
@@ -31,7 +32,7 @@ CIPHERS = [
 
 
 class ServerManagerDialog(Gtk.Dialog):
-    """Manage all Shadowsocks server profiles in one window."""
+    """Manage all Shadowsocks server profiles in one polished window."""
 
     def __init__(self, config: AppConfig):
         super().__init__(title=tr("Server Settings"), flags=0)
@@ -40,18 +41,17 @@ class ServerManagerDialog(Gtk.Dialog):
         self.active_index = min(config.active_profile, len(self.profiles) - 1)
         self.loading = False
 
-        self.set_default_size(820, 520)
-        self.set_resizable(True)
         self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        polish_dialog(self, default_width=820, default_height=520, resizable=True)
 
         content = self.get_content_area()
         content.set_spacing(0)
         content.set_margin_top(22)
-        content.set_margin_bottom(22)
+        content.set_margin_bottom(18)
         content.set_margin_start(22)
         content.set_margin_end(22)
 
-        root = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
+        root = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=22)
         root.set_hexpand(True)
         root.set_vexpand(True)
         content.pack_start(root, True, True, 0)
@@ -210,11 +210,10 @@ class ServerManagerDialog(Gtk.Dialog):
 
     def _on_remove(self, _button) -> None:
         if len(self.profiles) <= 1:
-            message = Gtk.MessageDialog(
-                transient_for=self,
-                message_type=Gtk.MessageType.INFO,
-                buttons=Gtk.ButtonsType.OK,
-                text=tr("At least one server profile must remain."),
+            message = create_alert(
+                tr("At least one server profile must remain."),
+                Gtk.MessageType.INFO,
+                parent=self,
             )
             message.run()
             message.destroy()
