@@ -5,7 +5,8 @@ import socketserver
 import subprocess
 import threading
 import time
-from urllib.parse import urlsplit
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, urlsplit
 
 from .config import LOG_FILE
 from .core import (
@@ -17,6 +18,7 @@ from .core import (
     _split_host_port,
     port_available,
 )
+from .pac import build_global_pac, build_pac
 
 
 def _connect_host(value: str) -> str:
@@ -197,6 +199,54 @@ class NgHttpProxyCore:
 
     def running(self) -> bool:
         return bool(self.server and self.thread and self.thread.is_alive())
+
+
+class NgPacServer:
+    """PAC server honoring NG's localhost-only binding preference."""
+
+    def __init__(self, config):
+        self.config = config
+        self.httpd: ThreadingHTTPServer | None = None
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self.httpd:
+            return
+        config = self.config
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802
+                path = urlparse(self.path).path
+                if path in ("/", "/proxy.pac"):
+                    payload = build_pac(config)
+                elif path == "/global.pac":
+                    payload = build_global_pac(config)
+                else:
+                    self.send_error(404)
+                    return
+                data = payload.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ns-proxy-autoconfig")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *_args) -> None:
+                return
+
+        host = "127.0.0.1" if config.pac_bind_localhost else "0.0.0.0"
+        self.httpd = ThreadingHTTPServer((host, config.pac_port), Handler)
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def stop(self) -> None:
+        if not self.httpd:
+            return
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.httpd = None
+        self.thread = None
 
 
 class NgSystemProxy(SystemProxy):
