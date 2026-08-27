@@ -84,9 +84,9 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu
-Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-handy-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
+Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
 Description: Shadowsocks desktop client for Linux/Ubuntu
- Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, SIP003 plugins and GNOME proxy integration.
+ Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, SIP003 plugins and GNOME proxy integration. Modern settings windows use GTK4/libadwaita in isolated helper processes while the tray remains compatible with AppIndicator/GTK3.
 EOF
 
 dpkg-deb --build --root-owner-group "$PKG" "$OUT"
