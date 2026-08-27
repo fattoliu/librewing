@@ -58,7 +58,6 @@ def _domain_from_rule(rule: str) -> str | None:
 
 
 def parse_gfwlist(raw: bytes) -> set[str]:
-    """Fast domain-only view used for counts/fallback PAC generation."""
     domains: set[str] = set()
     for line in decode_gfwlist(raw).splitlines():
         domain = _domain_from_rule(line)
@@ -78,13 +77,6 @@ def _user_rule_lines(config: AppConfig) -> list[str]:
 
 
 def merged_abp_rules(config: AppConfig) -> list[str]:
-    """Match ShadowsocksX-NG's PACUtils.swift rule precedence as closely as possible.
-
-    User rules are prepended. A GFWList rule is dropped when the user supplied the
-    same rule with leading @/| markers removed. This preserves complete ABP syntax
-    such as regexes, whitelist rules, URL anchors and rule options rather than
-    collapsing the list to domains.
-    """
     user_rules = _user_rule_lines(config)
     upstream: list[str] = []
     if config.gfwlist_enabled and GFWLIST_FILE.exists():
@@ -112,8 +104,6 @@ def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
-    # ShadowsocksX-NG uses its mature Adblock Plus PAC engine. Cache the same
-    # upstream template so Linux gets matching rule semantics without rewriting it.
     template = _download(config.abp_template_url, timeout=timeout)
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
@@ -159,12 +149,27 @@ def _domain_tests(domains: set[str]) -> str:
     )
 
 
+def _socks5(config: AppConfig) -> str:
+    return f"SOCKS5 127.0.0.1:{config.profile.local_port}"
+
+
+def build_global_pac(config: AppConfig) -> str:
+    proxy = _socks5(config)
+    return f'''function FindProxyForURL(url, host) {{
+    if (isPlainHostName(host) || shExpMatch(host, "localhost")) {{
+        return "DIRECT";
+    }}
+    return "{proxy}; DIRECT";
+}}
+'''
+
+
 def _build_fallback_pac(config: AppConfig) -> str:
     custom_proxy, custom_direct = _parse_custom_rules(config.custom_rules)
     proxy_domains = load_gfwlist_domains(config) | custom_proxy
     direct_tests = _domain_tests(custom_direct)
     proxy_tests = _domain_tests(proxy_domains)
-    proxy = f"PROXY 127.0.0.1:{config.http_port}"
+    proxy = _socks5(config)
     return f'''function FindProxyForURL(url, host) {{
     host = host.toLowerCase();
     if (isPlainHostName(host) || shExpMatch(host, "localhost")) {{
@@ -188,11 +193,9 @@ def build_pac(config: AppConfig) -> str:
     try:
         template = ABP_TEMPLATE_FILE.read_text(encoding="utf-8")
         rules_json = json.dumps(merged_abp_rules(config), ensure_ascii=False, separators=(",", ":"))
-        proxy_declaration = f'var proxy = "PROXY 127.0.0.1:{config.http_port}; DIRECT;";'
+        proxy_declaration = f'var proxy = "{_socks5(config)}; DIRECT;";'
         pac = template.replace("__RULES__", rules_json)
         pac = pac.replace(UPSTREAM_PROXY_DECLARATION, proxy_declaration)
-        # Keep compatibility if an upstream template changes the declaration but
-        # retains the standard placeholders.
         pac = pac.replace("__SOCKS5ADDR__", "127.0.0.1")
         pac = pac.replace("__SOCKS5PORT__", str(config.profile.local_port))
         return pac
@@ -213,10 +216,15 @@ class PacServer:
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:  # noqa: N802
-                if urlparse(self.path).path not in ("/", "/proxy.pac"):
+                path = urlparse(self.path).path
+                if path in ("/", "/proxy.pac"):
+                    payload = build_pac(config)
+                elif path == "/global.pac":
+                    payload = build_global_pac(config)
+                else:
                     self.send_error(404)
                     return
-                data = build_pac(config).encode("utf-8")
+                data = payload.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ns-proxy-autoconfig")
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
