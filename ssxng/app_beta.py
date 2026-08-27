@@ -7,12 +7,14 @@ from . import app as legacy_app
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
-TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor/scalable/apps"
+# These names map directly to the original ShadowsocksX-NG @2x menu-bar PNGs
+# installed by scripts/build-deb.sh.
+TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor/44x44/status"
 TRAY_ICONS = {
-    "off": "shadowsocksx-ng-linux-off-symbolic",
-    "pac": "shadowsocksx-ng-linux-pac-symbolic",
-    "global": "shadowsocksx-ng-linux-global-symbolic",
-    "manual": "shadowsocksx-ng-linux-manual-symbolic",
+    "off": "shadowsocksx-ng-linux-disabled",
+    "pac": "shadowsocksx-ng-linux-pac",
+    "global": "shadowsocksx-ng-linux-global",
+    "manual": "shadowsocksx-ng-linux-manual",
 }
 
 
@@ -57,14 +59,14 @@ def _menu_item(label, callback=None, *, sensitive=True):
 
 
 def _update_indicator_icon(self) -> None:
-    """Mirror ShadowsocksX-NG's paper-plane status icon by proxy mode."""
+    """Use the original ShadowsocksX-NG paper-plane status artwork."""
     mode = self.config.mode if self.core.running() else "off"
     icon_name = TRAY_ICONS.get(mode, TRAY_ICONS["off"])
     try:
         self.indicator.set_icon_theme_path(TRAY_ICON_THEME_PATH)
         self.indicator.set_icon_full(icon_name, f"Shadowsocks {mode}")
     except Exception:
-        # Never let a missing theme/icon break proxy operation.
+        # A visual failure must never affect proxy operation.
         pass
 
 
@@ -77,8 +79,6 @@ def _on_toggle_shadowsocks(self, _item) -> None:
         except Exception as exc:
             self.alert(f"Failed to stop Shadowsocks:\n{exc}")
     else:
-        # macOS-style toggle: switching the client back on restores a useful
-        # proxy mode instead of leaving the system in Proxy Off.
         if self.config.mode == "off":
             self.config.mode = "pac"
             self.config.save()
@@ -102,7 +102,6 @@ def _rebuild_menu(self) -> None:
     menu.append(_menu_item("Turn Off Shadowsocks" if running else "Turn On Shadowsocks", self.on_toggle_shadowsocks))
     menu.append(Gtk.SeparatorMenuItem())
 
-    # Proxy modes live at the top level, exactly like the macOS client.
     for label, mode in [
         ("PAC Auto Mode", "pac"),
         ("Global Mode", "global"),
@@ -114,13 +113,10 @@ def _rebuild_menu(self) -> None:
         item.connect("activate", self.on_mode, mode)
         menu.append(item)
 
-    # Keep the macOS menu position visible even though external PAC mode is not
-    # implemented by the Linux client yet.
     menu.append(_menu_item("External PAC Auto Mode", sensitive=False))
     menu.append(Gtk.SeparatorMenuItem())
 
-    # Native Gtk submenu => a separate floating cascade, never an inline
-    # accordion/expandable section.
+    # Native Gtk submenu: a separate floating cascade, matching macOS.
     servers_item = _menu_item(f"Servers - {self.config.profile.name}")
     servers = Gtk.Menu()
     servers.append(_menu_item("Server Settings…", self.on_edit_server))
@@ -135,7 +131,6 @@ def _rebuild_menu(self) -> None:
     servers_item.set_submenu(servers)
     menu.append(servers_item)
 
-    # macOS places import/share actions directly below the Servers cascade.
     menu.append(_menu_item("Scan QR Code on Screen", sensitive=False))
     menu.append(_menu_item("Import Server URL…", self.on_import_url))
     menu.append(_menu_item("Share Server Configuration…", self.on_copy_url))
@@ -185,11 +180,7 @@ def _on_help(self, _item) -> None:
 
 
 def _shutdown_runtime(self, *, quit_main: bool = True) -> None:
-    """Stop runtime services without overwriting the selected proxy mode.
-
-    This method is intentionally idempotent because it is used by the tray Quit
-    action, Unix signal handlers, and the final cleanup path in ``main``.
-    """
+    """Stop runtime services without overwriting the selected proxy mode."""
     if getattr(self, "_runtime_shutdown", False):
         if quit_main:
             legacy_app.Gtk.main_quit()
@@ -247,6 +238,10 @@ def main() -> int:
     try:
         install_dialog_styles()
         app = legacy_app.TrayApp()
+        # TrayApp builds its first menu before it starts ss-local. Rebuild once
+        # after construction so PAC/Global/Manual is reflected immediately on
+        # first launch instead of showing the neutral/off icon until a switch.
+        app.rebuild_menu()
         _install_signal_handlers(app)
         legacy_app.Gtk.main()
         return 0
