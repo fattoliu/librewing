@@ -7,6 +7,14 @@ from . import app as legacy_app
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
+TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor/scalable/apps"
+TRAY_ICONS = {
+    "off": "shadowsocksx-ng-linux-off-symbolic",
+    "pac": "shadowsocksx-ng-linux-pac-symbolic",
+    "global": "shadowsocksx-ng-linux-global-symbolic",
+    "manual": "shadowsocksx-ng-linux-manual-symbolic",
+}
+
 
 def _open_server_manager(self, add_new: bool = False) -> None:
     dialog = ServerManagerDialog(self.config)
@@ -48,6 +56,18 @@ def _menu_item(label, callback=None, *, sensitive=True):
     return item
 
 
+def _update_indicator_icon(self) -> None:
+    """Mirror ShadowsocksX-NG's paper-plane status icon by proxy mode."""
+    mode = self.config.mode if self.core.running() else "off"
+    icon_name = TRAY_ICONS.get(mode, TRAY_ICONS["off"])
+    try:
+        self.indicator.set_icon_theme_path(TRAY_ICON_THEME_PATH)
+        self.indicator.set_icon_full(icon_name, f"Shadowsocks {mode}")
+    except Exception:
+        # Never let a missing theme/icon break proxy operation.
+        pass
+
+
 def _on_toggle_shadowsocks(self, _item) -> None:
     if self.core.running():
         try:
@@ -76,6 +96,7 @@ def _rebuild_menu(self) -> None:
     menu = Gtk.Menu()
 
     running = self.core.running()
+    self.update_indicator_icon()
     status = _menu_item(f"●  Shadowsocks: {'On' if running else 'Off'}", sensitive=False)
     menu.append(status)
     menu.append(_menu_item("Turn Off Shadowsocks" if running else "Turn On Shadowsocks", self.on_toggle_shadowsocks))
@@ -214,6 +235,7 @@ def main() -> int:
     legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_delete_server = _on_delete_server
     legacy_app.TrayApp.on_toggle_shadowsocks = _on_toggle_shadowsocks
+    legacy_app.TrayApp.update_indicator_icon = _update_indicator_icon
     legacy_app.TrayApp.rebuild_menu = _rebuild_menu
     legacy_app.TrayApp.on_copy_terminal_proxy_command = _copy_terminal_proxy_command
     legacy_app.TrayApp.on_check_updates = _on_check_updates
