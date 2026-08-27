@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict
 
 from .config import ServerProfile
 from .share import parse_ss_url
