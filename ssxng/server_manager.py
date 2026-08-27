@@ -41,7 +41,10 @@ class ServerManagerDialog(HandyDialog):
         self.active_index = min(config.active_profile, len(self.profiles) - 1)
         self.loading = False
 
-        self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        # Never use Gtk.STOCK_* IDs here: with modern themes/libhandy they can
+        # render literally as "gtk-cancel" / "gtk-save" instead of localized
+        # labels. Use our i18n strings explicitly.
+        self.add_buttons(tr("Cancel"), Gtk.ResponseType.CANCEL, tr("Save"), Gtk.ResponseType.OK)
         polish_dialog(self, default_width=820, default_height=520, resizable=True)
 
         content = self.get_content_area()
