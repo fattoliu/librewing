@@ -40,7 +40,7 @@ jobs:
       - name: Import GTK application and CLI modules
         run: |
           /usr/bin/python3 -m compileall -q ssxng
-          PYTHONPATH=. /usr/bin/python3 -c 'import ssxng.app, ssxng.app_beta, ssxng.server_manager, ssxng.cli; print("desktop imports OK")'
+          PYTHONPATH=. /usr/bin/python3 -c 'import ssxng.app, ssxng.app_beta, ssxng.app_ng_features, ssxng.advanced_settings, ssxng.runtime_ng, ssxng.server_manager, ssxng.cli; print("desktop imports OK")'
           PYTHONPATH=. /usr/bin/python3 -c 'from ssxng.server_manager import CIPHERS; assert "aes-256-gcm" in CIPHERS and "chacha20-ietf-poly1305" in CIPHERS; print("cipher model OK")'
       - name: Verify required runtime commands
         run: |
