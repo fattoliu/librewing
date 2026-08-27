@@ -10,23 +10,16 @@ class ScreenQrError(RuntimeError):
     pass
 
 
-def scan_screen_payloads() -> list[str]:
-    """Capture the desktop and decode QR payloads with zbarimg.
+def _capture_screen(image: Path) -> None:
+    """Capture the GNOME desktop without requiring a new package.
 
-    Ubuntu/GNOME's gnome-screenshot is used rather than reading the framebuffer
-    directly so the implementation remains compatible with modern Wayland
-    sessions. zbarimg is already a runtime dependency of the client.
+    Prefer gnome-screenshot when it already exists. Otherwise use GNOME
+    Shell's D-Bus screenshot API through gdbus, which is part of the standard
+    Ubuntu desktop stack.
     """
     screenshot = shutil.which("gnome-screenshot")
-    zbarimg = shutil.which("zbarimg")
-    if not screenshot:
-        raise ScreenQrError("gnome-screenshot is not installed")
-    if not zbarimg:
-        raise ScreenQrError("zbarimg is not installed")
-
-    with tempfile.TemporaryDirectory(prefix="ssxng-qr-") as tmp:
-        image = Path(tmp) / "screen.png"
-        capture = subprocess.run(
+    if screenshot:
+        result = subprocess.run(
             [screenshot, "-f", str(image)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -34,9 +27,49 @@ def scan_screen_payloads() -> list[str]:
             timeout=15,
             check=False,
         )
-        if capture.returncode != 0 or not image.exists():
-            detail = (capture.stderr or capture.stdout or "screen capture failed").strip()
-            raise ScreenQrError(detail)
+        if result.returncode == 0 and image.exists():
+            return
+
+    gdbus = shutil.which("gdbus")
+    if gdbus:
+        result = subprocess.run(
+            [
+                gdbus,
+                "call",
+                "--session",
+                "--dest",
+                "org.gnome.Shell.Screenshot",
+                "--object-path",
+                "/org/gnome/Shell/Screenshot",
+                "--method",
+                "org.gnome.Shell.Screenshot.Screenshot",
+                "false",
+                "false",
+                str(image),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if result.returncode == 0 and image.exists():
+            return
+        detail = (result.stderr or result.stdout or "screen capture failed").strip()
+        raise ScreenQrError(detail)
+
+    raise ScreenQrError("screen capture is not available on this desktop")
+
+
+def scan_screen_payloads() -> list[str]:
+    """Capture the desktop and decode all QR payloads with zbarimg."""
+    zbarimg = shutil.which("zbarimg")
+    if not zbarimg:
+        raise ScreenQrError("zbarimg is not installed")
+
+    with tempfile.TemporaryDirectory(prefix="ssxng-qr-") as tmp:
+        image = Path(tmp) / "screen.png"
+        _capture_screen(image)
 
         decoded = subprocess.run(
             [zbarimg, "--quiet", "--raw", str(image)],
