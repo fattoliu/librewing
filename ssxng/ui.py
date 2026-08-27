@@ -7,14 +7,55 @@ from gi.repository import Gdk, Gtk  # noqa: E402
 
 
 _DIALOG_CSS = b"""
-/* Keep dialog action buttons away from window edges consistently. */
+/* Global dialog polish: compact, balanced and GNOME-friendly. */
+window.dialog,
+dialog {
+    background-color: @theme_bg_color;
+}
+
+.dialog-vbox,
+.message-dialog .dialog-vbox {
+    padding: 20px 22px 12px 22px;
+}
+
+.message-dialog box {
+    spacing: 14px;
+}
+
+.message-dialog image {
+    margin-right: 10px;
+}
+
+.message-dialog label {
+    font-size: 14px;
+}
+
 .dialog-action-area {
-    padding: 8px 16px 16px 16px;
+    padding: 10px 18px 16px 18px;
+    border-top: 1px solid alpha(@theme_fg_color, 0.10);
 }
 
 .dialog-action-area button {
-    min-width: 72px;
-    margin-left: 4px;
+    min-width: 88px;
+    min-height: 34px;
+    padding: 4px 14px;
+    margin-left: 6px;
+    border-radius: 8px;
+}
+
+.dialog-action-area button.suggested-action {
+    font-weight: 600;
+}
+
+entry,
+spinbutton,
+textview,
+combobox button {
+    border-radius: 7px;
+}
+
+frame {
+    border-radius: 10px;
 }
 """
 
@@ -22,13 +63,7 @@ _provider: Gtk.CssProvider | None = None
 
 
 def install_dialog_styles() -> None:
-    """Install application-wide GTK3 dialog spacing rules once.
-
-    Gtk.Dialog keeps its action area outside the content area, so margins on the
-    content widget do not affect the bottom-right buttons. Styling the standard
-    ``dialog-action-area`` class fixes every normal dialog, message dialog, and
-    about dialog consistently without per-window layout patches.
-    """
+    """Install application-wide GTK3 dialog styles once."""
     global _provider
     if _provider is not None:
         return
@@ -45,3 +80,47 @@ def install_dialog_styles() -> None:
         Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
     )
     _provider = provider
+
+
+def polish_dialog(dialog: Gtk.Dialog, *, default_width: int = 480) -> Gtk.Dialog:
+    """Apply consistent geometry and action styling to a GTK dialog."""
+    dialog.set_border_width(0)
+    dialog.set_resizable(False)
+    dialog.set_default_size(default_width, -1)
+    try:
+        dialog.set_deletable(True)
+    except Exception:
+        pass
+
+    action_area = dialog.get_action_area()
+    if action_area is not None:
+        action_area.set_spacing(8)
+
+    try:
+        ok = dialog.get_widget_for_response(Gtk.ResponseType.OK)
+        if ok is not None:
+            ok.get_style_context().add_class("suggested-action")
+            dialog.set_default_response(Gtk.ResponseType.OK)
+    except Exception:
+        pass
+    return dialog
+
+
+def create_alert(message: str, kind=Gtk.MessageType.INFO) -> Gtk.MessageDialog:
+    """Create a compact application alert used for latency, status and errors."""
+    dialog = Gtk.MessageDialog(
+        message_type=kind,
+        buttons=Gtk.ButtonsType.OK,
+        text=message,
+    )
+    dialog.set_modal(True)
+    dialog.set_skip_taskbar_hint(True)
+    polish_dialog(dialog, default_width=420)
+    try:
+        button = dialog.get_widget_for_response(Gtk.ResponseType.OK)
+        if button is not None:
+            button.set_label("确定")
+            button.get_style_context().add_class("suggested-action")
+    except Exception:
+        pass
+    return dialog
