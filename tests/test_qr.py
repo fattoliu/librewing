@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from ssxng.config import ServerProfile
 from ssxng import qr
+from ssxng.config import ServerProfile
 
 
 def test_export_profile_qr_requires_qrencode(monkeypatch, tmp_path):
