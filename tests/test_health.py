@@ -1,5 +1,3 @@
-import socket
-
 from ssxng import health
 from ssxng.config import AppConfig, ServerProfile
 
