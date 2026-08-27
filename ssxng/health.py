@@ -36,6 +36,7 @@ def run_health_checks(config: AppConfig) -> list[CheckResult]:
         _command("ss-local"),
         _command("gsettings"),
         _port_free("SOCKS port", config.profile.local_port),
+        _port_free("HTTP proxy port", config.http_port),
         _port_free("PAC port", config.pac_port),
     ]
     if config.profile.plugin:
