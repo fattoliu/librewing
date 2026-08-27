@@ -14,7 +14,7 @@ from .i18n import tr
 from .screen_qr import ScreenQrError, scan_screen_payloads
 from .server_json import example_json, export_servers, load_servers
 from .server_manager import ServerManagerDialog
-from .ui import install_dialog_styles
+from .ui import create_alert, install_dialog_styles
 
 TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor/44x44/status"
 TRAY_ICONS = {
@@ -23,6 +23,15 @@ TRAY_ICONS = {
     "global": "shadowsocksx-ng-linux-global",
     "manual": "shadowsocksx-ng-linux-manual",
 }
+
+
+def _alert(self, message: str, kind=None) -> None:
+    Gtk = legacy_app.Gtk
+    if kind is None:
+        kind = Gtk.MessageType.ERROR
+    dialog = create_alert(message, kind)
+    dialog.run()
+    dialog.destroy()
 
 
 def _open_server_manager(self, add_new: bool = False) -> None:
@@ -436,6 +445,7 @@ def _install_signal_handlers(app) -> None:
 
 
 def main() -> int:
+    legacy_app.TrayApp.alert = _alert
     legacy_app.TrayApp.on_add_server = _on_add_server
     legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_delete_server = _on_delete_server
