@@ -6,8 +6,8 @@ from ssxng.config import AppConfig, ServerProfile
 
 def test_health_reports_required_commands(monkeypatch):
     monkeypatch.setattr(health.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(health, "_socks_port", lambda name, port: health.CheckResult(name, True, str(port)))
-    monkeypatch.setattr(health, "_service_port", lambda name, port: health.CheckResult(name, True, str(port)))
+    monkeypatch.setattr(health, "_socks_port", lambda name, port, host="127.0.0.1": health.CheckResult(name, True, f"{host}:{port}"))
+    monkeypatch.setattr(health, "_service_port", lambda name, port, host="127.0.0.1": health.CheckResult(name, True, f"{host}:{port}"))
     cfg = AppConfig(profiles=[ServerProfile(server="example.com", password="x")])
 
     results = health.run_health_checks(cfg)
@@ -20,8 +20,8 @@ def test_health_reports_required_commands(monkeypatch):
 
 def test_health_reports_plugin(monkeypatch):
     monkeypatch.setattr(health.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(health, "_socks_port", lambda name, port: health.CheckResult(name, True, str(port)))
-    monkeypatch.setattr(health, "_service_port", lambda name, port: health.CheckResult(name, True, str(port)))
+    monkeypatch.setattr(health, "_socks_port", lambda name, port, host="127.0.0.1": health.CheckResult(name, True, f"{host}:{port}"))
+    monkeypatch.setattr(health, "_service_port", lambda name, port, host="127.0.0.1": health.CheckResult(name, True, f"{host}:{port}"))
     monkeypatch.setattr(health, "resolve_plugin", lambda plugin: "/usr/local/bin/obfs-local")
     cfg = AppConfig(profiles=[ServerProfile(server="example.com", password="x", plugin="obfs-local")])
 
@@ -33,7 +33,7 @@ def test_health_reports_plugin(monkeypatch):
 
 
 def test_socks_port_accepts_running_socks5_listener(monkeypatch):
-    monkeypatch.setattr(health, "_port_free", lambda name, port: health.CheckResult(name, False, "busy"))
+    monkeypatch.setattr(health, "_port_free", lambda name, port, host="127.0.0.1": health.CheckResult(name, False, "busy"))
 
     class FakeSocket:
         def __enter__(self):
@@ -60,7 +60,7 @@ def test_socks_port_accepts_running_socks5_listener(monkeypatch):
 
 
 def test_socks_port_rejects_non_socks_listener(monkeypatch):
-    monkeypatch.setattr(health, "_port_free", lambda name, port: health.CheckResult(name, False, "busy"))
+    monkeypatch.setattr(health, "_port_free", lambda name, port, host="127.0.0.1": health.CheckResult(name, False, "busy"))
 
     class FakeSocket:
         def __enter__(self):
@@ -87,7 +87,7 @@ def test_socks_port_rejects_non_socks_listener(monkeypatch):
 
 
 def test_service_port_accepts_running_listener(monkeypatch):
-    monkeypatch.setattr(health, "_port_free", lambda name, port: health.CheckResult(name, False, "busy"))
+    monkeypatch.setattr(health, "_port_free", lambda name, port, host="127.0.0.1": health.CheckResult(name, False, "busy"))
 
     class FakeConnection:
         def __enter__(self):
