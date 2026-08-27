@@ -12,6 +12,7 @@ from pathlib import Path
 from . import app as legacy_app
 from .i18n import tr
 from .screen_qr import ScreenQrError, scan_screen_payloads
+from .server_json import example_json, export_servers, load_servers
 from .server_manager import ServerManagerDialog
 from .ui import install_dialog_styles
 
@@ -156,7 +157,11 @@ def _rebuild_menu(self) -> None:
     menu.append(_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
     menu.append(_menu_item(tr("Import Server URL…"), self.on_import_url))
     menu.append(_menu_item(tr("Import Server URLs From Clipboard"), self.on_import_clipboard))
+    menu.append(_menu_item(tr("Import Server Configuration File…"), self.on_import_server_file))
+    menu.append(_menu_item(tr("Export All Server Configurations…"), self.on_export_server_file))
+    menu.append(_menu_item(tr("Show Example Server Configuration…"), self.on_show_example_server_file))
     menu.append(_menu_item(tr("Share Server Configuration…"), self.on_share_server))
+    menu.append(_menu_item(tr("Share All Server URLs…"), self.on_share_all_servers))
     menu.append(Gtk.SeparatorMenuItem())
 
     autostart_item = Gtk.CheckMenuItem(label=tr("Start At Login"))
@@ -172,6 +177,7 @@ def _rebuild_menu(self) -> None:
     menu.append(_menu_item(tr("View Logs…"), self.on_logs))
     menu.append(_menu_item(tr("Export Diagnostics…"), self.on_export_diagnostics))
     menu.append(_menu_item(tr("Check for Updates…"), self.on_check_updates))
+    menu.append(_menu_item(tr("Feedback"), self.on_feedback))
     menu.append(_menu_item(tr("Help"), self.on_help))
     menu.append(_menu_item(tr("About"), self.on_about))
     menu.append(Gtk.SeparatorMenuItem())
@@ -208,6 +214,62 @@ def _copy_terminal_proxy_command(self, _item) -> None:
     clipboard.set_text(command, -1)
     clipboard.store()
     self.alert(tr("Terminal proxy command copied to clipboard."), legacy_app.Gtk.MessageType.INFO)
+
+
+def _on_import_server_file(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    dialog = Gtk.FileChooserDialog(title=tr("Import Server Configuration File…"), action=Gtk.FileChooserAction.OPEN)
+    dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+    try:
+        if dialog.run() == Gtk.ResponseType.OK:
+            profiles = load_servers(Path(dialog.get_filename()))
+            self.config.profiles.extend(profiles)
+            self.config.active_profile = len(self.config.profiles) - len(profiles)
+            self.config.save()
+            self.rebuild_menu()
+            self.alert(tr("Imported {count} server(s).", count=len(profiles)), Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        dialog.destroy()
+
+
+def _on_export_server_file(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    dialog = Gtk.FileChooserDialog(title=tr("Export All Server Configurations…"), action=Gtk.FileChooserAction.SAVE)
+    dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+    dialog.set_do_overwrite_confirmation(True)
+    dialog.set_current_name("shadowsocks-servers.json")
+    try:
+        if dialog.run() == Gtk.ResponseType.OK:
+            export_servers(self.config.profiles, Path(dialog.get_filename()))
+            self.alert(tr("Exported {count} server(s).", count=len(self.config.profiles)), Gtk.MessageType.INFO)
+    except Exception as exc:
+        self.alert(str(exc))
+    finally:
+        dialog.destroy()
+
+
+def _on_show_example_server_file(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    dialog = Gtk.Dialog(title=tr("Show Example Server Configuration…"), flags=0)
+    dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE)
+    dialog.set_default_size(640, 480)
+    scroller = Gtk.ScrolledWindow()
+    scroller.set_hexpand(True)
+    scroller.set_vexpand(True)
+    text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+    text.get_buffer().set_text(example_json())
+    scroller.add(text)
+    box = dialog.get_content_area()
+    box.set_margin_top(16)
+    box.set_margin_bottom(16)
+    box.set_margin_start(16)
+    box.set_margin_end(16)
+    box.add(scroller)
+    dialog.show_all()
+    dialog.run()
+    dialog.destroy()
 
 
 def _on_share_server(self, _item) -> None:
@@ -254,6 +316,36 @@ def _on_share_server(self, _item) -> None:
                 pass
 
 
+def _on_share_all_servers(self, _item) -> None:
+    Gtk = legacy_app.Gtk
+    urls = "\n".join(legacy_app.build_ss_url(profile) for profile in self.config.profiles)
+    dialog = Gtk.Dialog(title=tr("Share All Server URLs…"), flags=0)
+    dialog.add_buttons(Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE, "Copy All", 1001)
+    dialog.set_default_size(680, 440)
+    scroller = Gtk.ScrolledWindow()
+    scroller.set_hexpand(True)
+    scroller.set_vexpand(True)
+    text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+    text.get_buffer().set_text(urls)
+    scroller.add(text)
+    box = dialog.get_content_area()
+    box.set_margin_top(16)
+    box.set_margin_bottom(16)
+    box.set_margin_start(16)
+    box.set_margin_end(16)
+    box.add(scroller)
+    dialog.show_all()
+    while True:
+        response = dialog.run()
+        if response == 1001:
+            clipboard = Gtk.Clipboard.get(legacy_app.Gdk.SELECTION_CLIPBOARD)
+            clipboard.set_text(urls, -1)
+            clipboard.store()
+            continue
+        break
+    dialog.destroy()
+
+
 def _diagnostics_text(self) -> str:
     p = self.config.profile
     plugins = legacy_app.discover_plugins()
@@ -293,6 +385,10 @@ def _on_export_diagnostics(self, _item) -> None:
 
 def _on_check_updates(self, _item) -> None:
     webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux/releases")
+
+
+def _on_feedback(self, _item) -> None:
+    webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux/issues")
 
 
 def _on_help(self, _item) -> None:
@@ -349,10 +445,15 @@ def main() -> int:
     legacy_app.TrayApp.rebuild_menu = _rebuild_menu
     legacy_app.TrayApp.on_scan_screen_qr = _scan_screen_qr
     legacy_app.TrayApp.on_copy_terminal_proxy_command = _copy_terminal_proxy_command
+    legacy_app.TrayApp.on_import_server_file = _on_import_server_file
+    legacy_app.TrayApp.on_export_server_file = _on_export_server_file
+    legacy_app.TrayApp.on_show_example_server_file = _on_show_example_server_file
     legacy_app.TrayApp.on_share_server = _on_share_server
+    legacy_app.TrayApp.on_share_all_servers = _on_share_all_servers
     legacy_app.TrayApp.diagnostics_text = _diagnostics_text
     legacy_app.TrayApp.on_export_diagnostics = _on_export_diagnostics
     legacy_app.TrayApp.on_check_updates = _on_check_updates
+    legacy_app.TrayApp.on_feedback = _on_feedback
     legacy_app.TrayApp.on_help = _on_help
     legacy_app.TrayApp.shutdown_runtime = _shutdown_runtime
     legacy_app.TrayApp.on_quit = _on_quit
