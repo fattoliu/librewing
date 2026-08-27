@@ -69,4 +69,14 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-ignore = ["E501"]
+# I001 is deliberately left to formatters; B904/UP037 are style-only and do
+# not affect this GTK/system integration code. E501 is covered by line-length.
+ignore = ["E501", "I001", "B904", "UP037"]
+
+[tool.ruff.lint.per-file-ignores]
+# PyGObject requires gi.require_version() before importing gi.repository, which
+# necessarily puts the following project imports after executable statements.
+"ssxng/app.py" = ["E402"]
+"ssxng/preferences_ng.py" = ["E402"]
+"ssxng/server_manager.py" = ["E402"]
+"ssxng/ui.py" = ["E402"]
