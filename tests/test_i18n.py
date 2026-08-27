@@ -11,6 +11,7 @@ def test_simplified_chinese_from_lang(monkeypatch):
     assert system_language() == "zh_CN"
     assert tr("Preferences…") == "偏好设置..."
     assert tr("PAC Auto Mode") == "PAC自动模式"
+    assert tr("Imported {count} server(s).", count=2) == "已导入 2 个服务器配置。"
 
 
 def test_traditional_chinese_from_language(monkeypatch):
@@ -23,6 +24,7 @@ def test_english_fallback(monkeypatch):
     monkeypatch.setenv("LANGUAGE", "de_DE")
     assert system_language() == "en"
     assert tr("Global Mode") == "Global Mode"
+    assert tr("Imported {count} server(s).", count=3) == "Imported 3 server(s)."
 
 
 def test_unknown_key_falls_back_to_source(monkeypatch):
