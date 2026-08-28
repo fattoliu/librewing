@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import subprocess
 import sys
 import threading
 
@@ -12,7 +13,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import __version__
-from .config import AppConfig
+from .config import AppConfig, GFWLIST_FILE
 from .diagnostics import tcp_latency
 from .i18n import system_language, tr
 from .pac import update_gfwlist
@@ -183,9 +184,28 @@ class GfwListUpdateApp(ProgressResultApp):
         )
         self.config = AppConfig.load()
 
+    def _refresh_active_pac(self) -> None:
+        if self.config.mode != "pac" or not GFWLIST_FILE.exists():
+            return
+        revision = int(GFWLIST_FILE.stat().st_mtime_ns)
+        url = f"http://127.0.0.1:{self.config.pac_port}/proxy.pac?v={revision}"
+        subprocess.run(
+            ["gsettings", "set", "org.gnome.system.proxy", "autoconfig-url", repr(url)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["gsettings", "set", "org.gnome.system.proxy", "mode", "'auto'"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
     def _worker(self) -> None:
         try:
             count = update_gfwlist(self.config, timeout=45)
+            self._refresh_active_pac()
             text = _localize(
                 f"GFWList 更新完成，共载入 {count} 个域名。",
                 f"GFWList 更新完成，共載入 {count} 個網域。",
