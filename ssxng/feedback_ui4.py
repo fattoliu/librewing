@@ -13,6 +13,7 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from . import __version__
 from .config import AppConfig
+from .diagnostics import tcp_latency
 from .i18n import system_language, tr
 from .pac import update_gfwlist
 
@@ -75,6 +76,13 @@ def _push_actions_to_bottom(body: Gtk.Box, actions: Gtk.Box) -> None:
     body.append(actions)
 
 
+def _ok_button(callback) -> Gtk.Button:
+    button = Gtk.Button(label=tr("OK"))
+    button.add_css_class("suggested-action")
+    button.connect("clicked", callback)
+    return button
+
+
 class AlertWindowApp(Adw.Application):
     """A compact standalone libadwaita result window."""
 
@@ -100,10 +108,7 @@ class AlertWindowApp(Adw.Application):
         label.set_max_width_chars(48)
         body.append(label)
 
-        ok = Gtk.Button(label=tr("OK"))
-        ok.add_css_class("suggested-action")
-        ok.connect("clicked", lambda *_: self.quit())
-        _push_actions_to_bottom(body, _bottom_actions(ok))
+        _push_actions_to_bottom(body, _bottom_actions(_ok_button(lambda *_: self.quit())))
 
         win.connect("close-request", self._close)
         win.present()
@@ -113,16 +118,17 @@ class AlertWindowApp(Adw.Application):
         return False
 
 
-class GfwListUpdateApp(Adw.Application):
-    """Run one GFWList update in one window and replace progress with result."""
+class ProgressResultApp(Adw.Application):
+    """Shared one-window progress/result pattern for foreground operations."""
 
-    def __init__(self) -> None:
-        super().__init__(application_id=APP_ID + ".GfwList")
-        self.config = AppConfig.load()
+    def __init__(self, application_id: str, title: str, progress_text: str, width: int = 470) -> None:
+        super().__init__(application_id=application_id)
+        self.title = title
+        self.progress_text = progress_text
+        self.width = width
 
     def do_activate(self) -> None:
-        title = _localize("更新 GFWList", "更新 GFWList", "Update GFWList")
-        self.win, body = _base_window(self, title, 470, 180)
+        self.win, body = _base_window(self, self.title, self.width, 180)
 
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.spinner = Gtk.Spinner()
@@ -130,11 +136,7 @@ class GfwListUpdateApp(Adw.Application):
         row.append(self.spinner)
 
         self.label = Gtk.Label(
-            label=_localize(
-                "正在更新 GFWList，请稍候…",
-                "正在更新 GFWList，請稍候…",
-                "Updating GFWList…",
-            ),
+            label=self.progress_text,
             wrap=True,
             xalign=0,
             yalign=0,
@@ -152,41 +154,84 @@ class GfwListUpdateApp(Adw.Application):
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _worker(self) -> None:
-        try:
-            count = update_gfwlist(self.config, timeout=45)
-            GLib.idle_add(self._finish, True, str(count))
-        except Exception as exc:
-            GLib.idle_add(self._finish, False, str(exc))
+        raise NotImplementedError
 
-    def _finish(self, ok: bool, detail: str) -> bool:
+    def _show_result(self, text: str) -> bool:
         self.spinner.stop()
         self.spinner.set_visible(False)
-        if ok:
-            self.label.set_text(
-                _localize(
-                    f"GFWList 更新完成，共载入 {detail} 个域名。",
-                    f"GFWList 更新完成，共載入 {detail} 個網域。",
-                    f"GFWList updated successfully: {detail} domains.",
-                )
-            )
-        else:
-            self.label.set_text(
-                _localize(
-                    f"GFWList 更新失败：\n{detail}",
-                    f"GFWList 更新失敗：\n{detail}",
-                    f"GFWList update failed:\n{detail}",
-                )
-            )
-
-        ok_button = Gtk.Button(label=tr("OK"))
-        ok_button.add_css_class("suggested-action")
-        ok_button.connect("clicked", lambda *_: self.quit())
-        self.actions.append(ok_button)
+        self.label.set_text(text)
+        self.actions.append(_ok_button(lambda *_: self.quit()))
         return False
 
     def _close(self, *_args) -> bool:
         self.quit()
         return False
+
+
+class GfwListUpdateApp(ProgressResultApp):
+    """Run one GFWList update in one window and replace progress with result."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            APP_ID + ".GfwList",
+            _localize("更新 GFWList", "更新 GFWList", "Update GFWList"),
+            _localize(
+                "正在更新 GFWList，请稍候…",
+                "正在更新 GFWList，請稍候…",
+                "Updating GFWList…",
+            ),
+        )
+        self.config = AppConfig.load()
+
+    def _worker(self) -> None:
+        try:
+            count = update_gfwlist(self.config, timeout=45)
+            text = _localize(
+                f"GFWList 更新完成，共载入 {count} 个域名。",
+                f"GFWList 更新完成，共載入 {count} 個網域。",
+                f"GFWList updated successfully: {count} domains.",
+            )
+        except Exception as exc:
+            text = _localize(
+                f"GFWList 更新失败：\n{exc}",
+                f"GFWList 更新失敗：\n{exc}",
+                f"GFWList update failed:\n{exc}",
+            )
+        GLib.idle_add(self._show_result, text)
+
+
+class LatencyTestApp(ProgressResultApp):
+    """Show progress immediately, then replace it with the TCP latency result."""
+
+    def __init__(self) -> None:
+        self.config = AppConfig.load()
+        profile = self.config.profile
+        super().__init__(
+            APP_ID + ".Latency",
+            _localize("服务器测速", "伺服器測速", "Server Latency Test"),
+            _localize(
+                f"正在测试 {profile.name}（{profile.server}:{profile.server_port}），请稍候…",
+                f"正在測試 {profile.name}（{profile.server}:{profile.server_port}），請稍候…",
+                f"Testing {profile.name} ({profile.server}:{profile.server_port})…",
+            ),
+        )
+
+    def _worker(self) -> None:
+        profile = self.config.profile
+        try:
+            latency = tcp_latency(profile)
+            text = _localize(
+                f"服务器 TCP 延迟：{latency:.0f} ms",
+                f"伺服器 TCP 延遲：{latency:.0f} ms",
+                f"Server TCP latency: {latency:.0f} ms",
+            )
+        except Exception as exc:
+            text = _localize(
+                f"服务器测速失败：\n{exc}",
+                f"伺服器測速失敗：\n{exc}",
+                f"Server latency test failed:\n{exc}",
+            )
+        GLib.idle_add(self._show_result, text)
 
 
 class AboutWindowApp(Adw.Application):
@@ -220,6 +265,7 @@ def main() -> int:
     alert.add_argument("message")
     alert.add_argument("--title", default="ShadowsocksX-NG Linux")
     sub.add_parser("gfwlist")
+    sub.add_parser("latency")
     sub.add_parser("about")
     args = parser.parse_args()
 
@@ -227,6 +273,8 @@ def main() -> int:
         return AlertWindowApp(args.message, args.title).run([sys.argv[0]])
     if args.cmd == "gfwlist":
         return GfwListUpdateApp().run([sys.argv[0]])
+    if args.cmd == "latency":
+        return LatencyTestApp().run([sys.argv[0]])
     return AboutWindowApp().run([sys.argv[0]])
 
 
