@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 
 import gi
@@ -23,13 +24,19 @@ class AlertWindowApp(Adw.Application):
         self.message = message
         self.title = title
 
+    def _height(self) -> int:
+        explicit_lines = max(1, len(self.message.splitlines()))
+        wrapped_lines = max(1, math.ceil(max((len(line) for line in self.message.splitlines()), default=1) / 46))
+        lines = max(explicit_lines, wrapped_lines)
+        return min(250, 146 + (lines - 1) * 22)
+
     def do_activate(self) -> None:
         win = Adw.ApplicationWindow(application=self)
         win.set_title(self.title)
-        # Let GTK calculate the natural height from the message and controls.
-        # A fixed 190px height left a conspicuous empty band below short
-        # one-line notifications such as "terminal proxy command copied".
-        win.set_default_size(420, -1)
+        # These are transient result/notification windows. Give them an exact,
+        # content-based compact size instead of relying on the WM's remembered
+        # natural size, which left a large empty band below short messages.
+        win.set_default_size(420, self._height())
         win.set_resizable(False)
 
         toolbar = Adw.ToolbarView()
@@ -42,16 +49,16 @@ class AlertWindowApp(Adw.Application):
             pass
         win.set_content(toolbar)
 
-        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        body.set_margin_top(18)
-        body.set_margin_bottom(18)
-        body.set_margin_start(20)
-        body.set_margin_end(20)
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        body.set_margin_top(14)
+        body.set_margin_bottom(14)
+        body.set_margin_start(18)
+        body.set_margin_end(18)
         toolbar.set_content(body)
 
         label = Gtk.Label(label=self.message, wrap=True, xalign=0)
         label.set_hexpand(True)
-        label.set_max_width_chars(52)
+        label.set_max_width_chars(48)
         body.append(label)
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
