@@ -25,13 +25,7 @@ TRAY_ICONS = {
 
 
 def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    """Run a GTK4 helper modally without sharing the tray's signal group.
-
-    GTK3 owns the tray process while GTK4/libadwaita windows run in helper
-    processes.  Keep modal helpers isolated from terminal SIGINT so Ctrl+C is
-    handled by the tray first; if the tray is interrupted, explicitly terminate
-    the helper instead of letting both processes print KeyboardInterrupt traces.
-    """
+    """Run a GTK4 helper modally without sharing the tray's signal group."""
     command = [sys.executable, "-m", "ssxng.modern_ui4", *args]
     process = subprocess.Popen(
         command,
@@ -71,13 +65,21 @@ def _spawn_ui4(*args: str) -> None:
     )
 
 
+def _spawn_feedback4(*args: str) -> None:
+    """Present standalone feedback that does not require a mapped GTK parent."""
+    subprocess.Popen(
+        [sys.executable, "-m", "ssxng.feedback_ui4", *args],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+
+
 def _alert4(self, message: str, kind=None) -> None:
     del self, kind
-    # Alerts are notifications/results, not modal workflow steps.  Waiting for
-    # the helper here would block Gtk.main(), making every tray menu item appear
-    # frozen until the alert was dismissed (especially visible after latency
-    # tests).  Fire-and-forget keeps the indicator fully responsive.
-    _spawn_ui4("alert", str(message))
+    _spawn_feedback4("alert", str(message))
 
 
 def _update_indicator_icon(self) -> None:
@@ -256,7 +258,7 @@ def _on_logs4(self, _item) -> None:
 
 
 def _on_about4(self, _item) -> None:
-    _spawn_ui4("about")
+    _spawn_feedback4("about")
 
 
 def _on_share_server4(self, _item) -> None:
@@ -424,8 +426,6 @@ def main() -> int:
     legacy_app.TrayApp.on_logs = _on_logs4
     legacy_app.TrayApp.on_about = _on_about4
 
-    # app_beta.main installs these symbols onto TrayApp. Replace the symbols
-    # themselves so every dialog it wires up is GTK4/libadwaita-backed.
     app_beta._alert = _alert4
     app_beta._on_share_server = _on_share_server4
     app_beta._on_share_all_servers = _on_share_all_servers4
