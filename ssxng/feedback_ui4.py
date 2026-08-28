@@ -16,12 +16,7 @@ APP_ID = "io.github.fattoliu.shadowsocksxng.Feedback"
 
 
 class AlertWindowApp(Adw.Application):
-    """A small standalone libadwaita result window.
-
-    Adw.AlertDialog needs a mapped parent. Our tray lives in a separate GTK3
-    process, so using an unpresented dummy parent made feedback effectively
-    invisible. A compact standalone window is reliable and still looks native.
-    """
+    """A compact standalone libadwaita result window."""
 
     def __init__(self, message: str, title: str) -> None:
         super().__init__(application_id=APP_ID + ".Alert")
@@ -31,7 +26,11 @@ class AlertWindowApp(Adw.Application):
     def do_activate(self) -> None:
         win = Adw.ApplicationWindow(application=self)
         win.set_title(self.title)
-        win.set_default_size(440, 190)
+        # Let GTK calculate the natural height from the message and controls.
+        # A fixed 190px height left a conspicuous empty band below short
+        # one-line notifications such as "terminal proxy command copied".
+        win.set_default_size(420, -1)
+        win.set_resizable(False)
 
         toolbar = Adw.ToolbarView()
         header = Adw.HeaderBar()
@@ -43,15 +42,16 @@ class AlertWindowApp(Adw.Application):
             pass
         win.set_content(toolbar)
 
-        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
-        body.set_margin_top(24)
-        body.set_margin_bottom(24)
-        body.set_margin_start(24)
-        body.set_margin_end(24)
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        body.set_margin_top(18)
+        body.set_margin_bottom(18)
+        body.set_margin_start(20)
+        body.set_margin_end(20)
         toolbar.set_content(body)
 
         label = Gtk.Label(label=self.message, wrap=True, xalign=0)
         label.set_hexpand(True)
+        label.set_max_width_chars(52)
         body.append(label)
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
