@@ -65,8 +65,14 @@ bundle_simple_obfs() {
   trap 'rm -rf "$tmp"' RETURN
 
   echo "Bundling simple-obfs runtime for $ARCH from $url" >&2
-  curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 \
-    --output "$tmp/simple-obfs.deb" "$url"
+  # A developer may have http_proxy/https_proxy/ALL_PROXY pointing at this
+  # application's local proxy (for example 127.0.0.1:1087). During a clean
+  # install that proxy does not exist yet, so the package builder must not
+  # inherit those stale variables. Fetch this build-time artifact directly.
+  env -u http_proxy -u https_proxy -u all_proxy \
+      -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+    curl --noproxy '*' --fail --location --silent --show-error --retry 2 --connect-timeout 15 \
+      --output "$tmp/simple-obfs.deb" "$url"
   dpkg-deb -x "$tmp/simple-obfs.deb" "$tmp/root"
 
   if [ ! -x "$tmp/root/usr/bin/obfs-local" ]; then
