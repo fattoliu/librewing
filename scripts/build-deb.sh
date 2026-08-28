@@ -4,20 +4,91 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION:-0.2.0}"
 ARCH="${ARCH:-amd64}"
+UBUNTU_SERIES="${UBUNTU_SERIES:-resolute}"
+BUNDLE_SIMPLE_OBFS="${BUNDLE_SIMPLE_OBFS:-1}"
 PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
 ICON_ASSETS="$ROOT/assets/upstream"
 ICON_OUT="$PKG/usr/share/icons/hicolor/44x44/status"
+APP_LIB="$PKG/usr/lib/shadowsocksx-ng-linux"
+APP_BIN="$APP_LIB/bin"
 
 rm -rf "$PKG"
 mkdir -p \
   "$PKG/DEBIAN" \
   "$PKG/usr/bin" \
-  "$PKG/usr/lib/shadowsocksx-ng-linux" \
+  "$APP_LIB" \
+  "$APP_BIN" \
   "$PKG/usr/share/applications" \
+  "$PKG/usr/share/doc/shadowsocksx-ng-linux" \
   "$ICON_OUT"
 
-cp -R "$ROOT/ssxng" "$PKG/usr/lib/shadowsocksx-ng-linux/"
+cp -R "$ROOT/ssxng" "$APP_LIB/"
+
+bundle_simple_obfs() {
+  [ "$BUNDLE_SIMPLE_OBFS" = "1" ] || return 0
+
+  local target="$APP_BIN/obfs-local"
+  local system_obfs=""
+  system_obfs="$(command -v obfs-local 2>/dev/null || true)"
+
+  # Development builds can reuse an already-installed executable. Official or
+  # clean builders fall through to the architecture-specific package below.
+  if [ -n "$system_obfs" ] && [ -x "$system_obfs" ]; then
+    echo "Bundling simple-obfs from $system_obfs" >&2
+    cp "$system_obfs" "$target"
+    chmod 755 "$target"
+    return 0
+  fi
+
+  case "$ARCH" in
+    amd64|arm64) ;;
+    *)
+      echo "No bundled simple-obfs binary source is configured for architecture: $ARCH" >&2
+      echo "Set BUNDLE_SIMPLE_OBFS=0 or provide obfs-local in PATH." >&2
+      exit 1
+      ;;
+  esac
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is required to assemble the bundled simple-obfs runtime." >&2
+    exit 1
+  fi
+
+  local version="0.0.5-1"
+  local release="ubuntu.26.04~${UBUNTU_SERIES}"
+  local filename="shadowsocks-simple-obfs_${version}~${release}_${ARCH}.deb"
+  local base="https://dl.lamp.sh/shadowsocks/ubuntu/pool/main/s/shadowsocks-simple-obfs"
+  local url="${SIMPLE_OBFS_DEB_URL:-$base/$filename}"
+  local tmp
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+
+  echo "Bundling simple-obfs runtime for $ARCH from $url" >&2
+  curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 \
+    --output "$tmp/simple-obfs.deb" "$url"
+  dpkg-deb -x "$tmp/simple-obfs.deb" "$tmp/root"
+
+  if [ ! -x "$tmp/root/usr/bin/obfs-local" ]; then
+    echo "Downloaded simple-obfs package does not contain /usr/bin/obfs-local" >&2
+    exit 1
+  fi
+  cp "$tmp/root/usr/bin/obfs-local" "$target"
+  chmod 755 "$target"
+
+  # Preserve upstream package copyright information in our binary distribution
+  # when the source package provides it.
+  local copyright
+  copyright="$(find "$tmp/root/usr/share/doc" -maxdepth 2 -name copyright -print -quit 2>/dev/null || true)"
+  if [ -n "$copyright" ]; then
+    cp "$copyright" "$PKG/usr/share/doc/shadowsocksx-ng-linux/simple-obfs-copyright"
+  fi
+
+  rm -rf "$tmp"
+  trap - RETURN
+}
+
+bundle_simple_obfs
 
 declare -A ICONS=(
   [shadowsocksx-ng-linux]="menu_icon@2x.png"
@@ -85,8 +156,9 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu
 Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
+Recommends: shadowsocks-v2ray-plugin
 Description: Shadowsocks desktop client for Linux/Ubuntu
- Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, SIP003 plugins and GNOME proxy integration. Modern settings windows use GTK4/libadwaita in isolated helper processes while the tray remains compatible with AppIndicator/GTK3.
+ Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, bundled simple-obfs client support, SIP003 plugins and GNOME proxy integration. Modern settings windows use GTK4/libadwaita in isolated helper processes while the tray remains compatible with AppIndicator/GTK3.
 EOF
 
 dpkg-deb --build --root-owner-group "$PKG" "$OUT"
