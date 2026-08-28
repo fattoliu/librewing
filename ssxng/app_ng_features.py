@@ -24,10 +24,11 @@ TRAY_ICONS = {
     "manual": "shadowsocksx-ng-linux-manual",
 }
 
-# GNOME Shell renders AppIndicator submenus inline and recalculates the popup
-# width when a submenu opens. Keep the popup deliberately a little wider from
-# the start so opening the Servers section does not make the whole menu jump.
-TRAY_MENU_WIDTH_CELLS = 38
+# GNOME Shell renders AppIndicator submenus inline. Reserve a little extra
+# width only on the top-level rows; submenu rows keep their natural width so
+# their indentation/radio-marker overhead fits inside the space already held
+# by the parent popup instead of expanding it again.
+TRAY_MENU_WIDTH_CELLS = 46
 
 
 def _display_cells(text: str) -> int:
@@ -41,7 +42,7 @@ def _display_cells(text: str) -> int:
 
 
 def _reserve_menu_width(label: str, target_cells: int = TRAY_MENU_WIDTH_CELLS) -> str:
-    """Pad a label with non-breaking spaces to keep the shell popup width stable."""
+    """Pad a top-level label with non-breaking spaces to stabilize popup width."""
     missing = max(0, target_cells - _display_cells(label))
     return label + ("\u00a0" * missing)
 
@@ -391,7 +392,7 @@ def _on_export_diagnostics4(self, _item) -> None:
 
 
 def _fixed_menu_item(label: str, callback=None, *args, sensitive: bool = True):
-    """Create a tray item whose label reserves the same popup width."""
+    """Create a top-level tray item whose label reserves the popup width."""
     return app_beta._menu_item(
         _reserve_menu_width(label), callback, *args, sensitive=sensitive
     )
@@ -432,13 +433,15 @@ def _rebuild_menu(self) -> None:
     servers = Gtk.Menu()
     for i, profile in enumerate(self.config.profiles):
         label = f"{profile.name} ({profile.server}:{profile.server_port})"
-        item = Gtk.CheckMenuItem(label=_reserve_menu_width(label))
+        # Keep submenu rows at natural width. GNOME adds its own inline
+        # indentation and radio-marker column when this section opens.
+        item = Gtk.CheckMenuItem(label=label)
         item.set_draw_as_radio(True)
         item.set_active(i == self.config.active_profile)
         item.connect("activate", self.on_profile, i)
         servers.append(item)
     servers.append(Gtk.SeparatorMenuItem())
-    servers.append(_fixed_menu_item(tr("Server Settings…"), self.on_edit_server))
+    servers.append(app_beta._menu_item(tr("Server Settings…"), self.on_edit_server))
     servers.show_all()
     servers_item.set_submenu(servers)
     menu.append(servers_item)
