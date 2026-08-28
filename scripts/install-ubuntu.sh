@@ -31,9 +31,9 @@ if pgrep -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' >/dev/null 2>
   done
 fi
 
-# Build a native .deb from the checked-out source. The package declares all
-# runtime dependencies, so apt installs them without touching pip/pipx or the
-# externally-managed system Python environment (PEP 668).
+# Build a native .deb from the checked-out source. The package declares the
+# system runtime dependencies and embeds obfs-local, so users do not need to
+# install shadowsocks-libev/simple-obfs manually before using the application.
 bash scripts/build-deb.sh >/dev/null
 DEB="$(ls -t dist/shadowsocksx-ng-linux_*.deb | head -n1)"
 
@@ -41,6 +41,17 @@ DEB="$(ls -t dist/shadowsocksx-ng-linux_*.deb | head -n1)"
 # change. --reinstall ensures the freshly rebuilt local .deb replaces the
 # currently installed files instead of apt saying "already newest".
 sudo apt install -y --reinstall "./$DEB"
+
+# Validate the runtime contract immediately after installation. shadowsocks-libev
+# is resolved by apt; simple-obfs is part of our own package payload.
+if ! command -v ss-local >/dev/null 2>&1; then
+  echo "Installation finished, but ss-local is missing." >&2
+  exit 1
+fi
+if [ ! -x /usr/lib/shadowsocksx-ng-linux/bin/obfs-local ]; then
+  echo "Installation finished, but bundled obfs-local is missing." >&2
+  exit 1
+fi
 
 # Remove only stale launchers created by older pip --user based installers.
 # Never remove arbitrary user Python packages or run autoremove here.
@@ -66,8 +77,9 @@ echo
 echo "Installed successfully from native Debian package."
 echo "Run: /usr/bin/ssx-ng-linux"
 echo "Package: $DEB"
+echo "ss-local: $(command -v ss-local)"
+echo "obfs-local: /usr/lib/shadowsocksx-ng-linux/bin/obfs-local (bundled)"
 echo "No pip, pipx, venv, or --break-system-packages is used."
-echo "simple-obfs: install obfs-local separately if your server requires it."
 
 if systemctl is-active --quiet shadowsocks-libev-local@config.service 2>/dev/null; then
   echo
