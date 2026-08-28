@@ -24,6 +24,11 @@ TRAY_ICONS = {
     "manual": "shadowsocksx-ng-linux-manual",
 }
 
+# GNOME Shell renders AppIndicator submenus inline and recalculates the popup
+# width when a submenu opens. Keep the popup deliberately a little wider from
+# the start so opening the Servers section does not make the whole menu jump.
+TRAY_MENU_WIDTH_CELLS = 38
+
 
 def _display_cells(text: str) -> int:
     """Approximate the visual width GNOME Shell uses for menu labels."""
@@ -35,8 +40,8 @@ def _display_cells(text: str) -> int:
     return width
 
 
-def _reserve_menu_width(label: str, target_cells: int) -> str:
-    """Pad a label with non-breaking spaces so inline submenus do not resize the shell menu."""
+def _reserve_menu_width(label: str, target_cells: int = TRAY_MENU_WIDTH_CELLS) -> str:
+    """Pad a label with non-breaking spaces to keep the shell popup width stable."""
     missing = max(0, target_cells - _display_cells(label))
     return label + ("\u00a0" * missing)
 
@@ -385,17 +390,24 @@ def _on_export_diagnostics4(self, _item) -> None:
         self.alert(str(exc))
 
 
+def _fixed_menu_item(label: str, callback=None, *args, sensitive: bool = True):
+    """Create a tray item whose label reserves the same popup width."""
+    return app_beta._menu_item(
+        _reserve_menu_width(label), callback, *args, sensitive=sensitive
+    )
+
+
 def _rebuild_menu(self) -> None:
-    """Compact tray hierarchy matching ShadowsocksX-NG."""
+    """Compact tray hierarchy matching ShadowsocksX-NG with a stable width."""
     Gtk = legacy_app.Gtk
     menu = Gtk.Menu()
 
     running = self.core.running()
     self.update_indicator_icon()
-    menu.append(app_beta._menu_item(
+    menu.append(_fixed_menu_item(
         f"●  {tr('Shadowsocks: On') if running else tr('Shadowsocks: Off')}", sensitive=False
     ))
-    menu.append(app_beta._menu_item(
+    menu.append(_fixed_menu_item(
         tr("Turn Off Shadowsocks") if running else tr("Turn On Shadowsocks"),
         self.on_toggle_shadowsocks,
     ))
@@ -407,7 +419,7 @@ def _rebuild_menu(self) -> None:
         ("Manual Mode", "manual", True),
         ("External PAC Auto Mode", "external_pac", bool(self.config.external_pac_url.strip())),
     ]:
-        item = Gtk.CheckMenuItem(label=tr(label))
+        item = Gtk.CheckMenuItem(label=_reserve_menu_width(tr(label)))
         item.set_draw_as_radio(True)
         item.set_active(self.config.mode == mode)
         item.set_sensitive(sensitive)
@@ -415,50 +427,41 @@ def _rebuild_menu(self) -> None:
         menu.append(item)
     menu.append(Gtk.SeparatorMenuItem())
 
-    server_labels = [
-        f"{profile.name} ({profile.server}:{profile.server_port})"
-        for profile in self.config.profiles
-    ]
-    server_labels.append(tr("Server Settings…"))
-    # GNOME Shell renders AppIndicator submenus inline and recomputes the menu
-    # width when they open. Reserve the widest server-row width up front so
-    # expanding/collapsing the server section does not make the whole popup jump.
-    submenu_width = max((_display_cells(label) for label in server_labels), default=0)
     server_parent = f"{tr('Servers')} - {self.config.profile.name}"
-    servers_item = app_beta._menu_item(_reserve_menu_width(server_parent, submenu_width))
+    servers_item = _fixed_menu_item(server_parent)
     servers = Gtk.Menu()
     for i, profile in enumerate(self.config.profiles):
         label = f"{profile.name} ({profile.server}:{profile.server_port})"
-        item = Gtk.CheckMenuItem(label=label)
+        item = Gtk.CheckMenuItem(label=_reserve_menu_width(label))
         item.set_draw_as_radio(True)
         item.set_active(i == self.config.active_profile)
         item.connect("activate", self.on_profile, i)
         servers.append(item)
     servers.append(Gtk.SeparatorMenuItem())
-    servers.append(app_beta._menu_item(tr("Server Settings…"), self.on_edit_server))
+    servers.append(_fixed_menu_item(tr("Server Settings…"), self.on_edit_server))
     servers.show_all()
     servers_item.set_submenu(servers)
     menu.append(servers_item)
-    menu.append(app_beta._menu_item(tr("Ping Server"), self.on_test_latency))
+    menu.append(_fixed_menu_item(tr("Ping Server"), self.on_test_latency))
 
-    menu.append(app_beta._menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
-    menu.append(app_beta._menu_item(tr("Import Server URL…"), self.on_import_url))
-    menu.append(app_beta._menu_item(tr("Share Server Configuration…"), self.on_share_server))
+    menu.append(_fixed_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
+    menu.append(_fixed_menu_item(tr("Import Server URL…"), self.on_import_url))
+    menu.append(_fixed_menu_item(tr("Share Server Configuration…"), self.on_share_server))
     menu.append(Gtk.SeparatorMenuItem())
 
-    menu.append(app_beta._menu_item(tr("Preferences…"), self.on_preferences))
-    menu.append(app_beta._menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
-    menu.append(app_beta._menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
-    menu.append(app_beta._menu_item(tr("Edit PAC User Rules…"), self.on_edit_rules))
+    menu.append(_fixed_menu_item(tr("Preferences…"), self.on_preferences))
+    menu.append(_fixed_menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
+    menu.append(_fixed_menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
+    menu.append(_fixed_menu_item(tr("Edit PAC User Rules…"), self.on_edit_rules))
     menu.append(Gtk.SeparatorMenuItem())
 
-    menu.append(app_beta._menu_item(tr("View Logs…"), self.on_logs))
-    menu.append(app_beta._menu_item(tr("Export Diagnostics…"), self.on_export_diagnostics))
-    menu.append(app_beta._menu_item(tr("Check for Updates…"), self.on_check_updates))
-    menu.append(app_beta._menu_item(tr("Help"), self.on_help))
-    menu.append(app_beta._menu_item(tr("About"), self.on_about))
+    menu.append(_fixed_menu_item(tr("View Logs…"), self.on_logs))
+    menu.append(_fixed_menu_item(tr("Export Diagnostics…"), self.on_export_diagnostics))
+    menu.append(_fixed_menu_item(tr("Check for Updates…"), self.on_check_updates))
+    menu.append(_fixed_menu_item(tr("Help"), self.on_help))
+    menu.append(_fixed_menu_item(tr("About"), self.on_about))
     menu.append(Gtk.SeparatorMenuItem())
-    menu.append(app_beta._menu_item(tr("Quit"), self.on_quit))
+    menu.append(_fixed_menu_item(tr("Quit"), self.on_quit))
 
     menu.show_all()
     self.indicator.set_menu(menu)
@@ -497,7 +500,3 @@ def main() -> int:
     app_beta._update_indicator_icon = _update_indicator_icon
     app_beta._rebuild_menu = _rebuild_menu
     return app_beta.main()
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
