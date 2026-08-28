@@ -27,30 +27,53 @@ def _local_proxy_available(port: int) -> bool:
 
 
 def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> bytes:
-    """Download rule assets, preferring the active Shadowsocks tunnel when available."""
+    """Download rule assets with a resilient proxy/direct fallback path.
+
+    Prefer the active local SOCKS tunnel, but a listening port does not
+    guarantee that the upstream tunnel is healthy. curl exit 28 is a timeout;
+    in that case fall back to urllib, which also honours the user's standard
+    http_proxy/https_proxy environment when present.
+    """
     curl = shutil.which("curl")
+    socks_error: Exception | None = None
     if socks_port and curl and _local_proxy_available(socks_port):
-        completed = subprocess.run(
-            [
-                curl,
-                "--fail",
-                "--silent",
-                "--show-error",
-                "--location",
-                "--max-time",
-                str(timeout),
-                "--socks5-hostname",
-                f"127.0.0.1:{int(socks_port)}",
-                url,
-            ],
-            check=True,
-            capture_output=True,
-        )
-        return completed.stdout
+        try:
+            completed = subprocess.run(
+                [
+                    curl,
+                    "--fail",
+                    "--silent",
+                    "--show-error",
+                    "--location",
+                    "--connect-timeout",
+                    "10",
+                    "--max-time",
+                    str(timeout),
+                    "--retry",
+                    "2",
+                    "--retry-delay",
+                    "1",
+                    "--socks5-hostname",
+                    f"127.0.0.1:{int(socks_port)}",
+                    url,
+                ],
+                check=True,
+                capture_output=True,
+            )
+            return completed.stdout
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            socks_error = exc
 
     request = urllib.request.Request(url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.read()
+    except Exception as direct_error:
+        if socks_error is not None:
+            raise RuntimeError(
+                f"Download failed through local SOCKS and fallback connection: {direct_error}"
+            ) from socks_error
+        raise
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -174,13 +197,7 @@ def _parse_custom_rules(rules: list[str]) -> tuple[set[str], set[str]]:
 
 
 def _domain_sets(config: AppConfig) -> tuple[set[str], set[str]]:
-    """Extract fast domain rules while preserving whitelist precedence.
-
-    ShadowsocksX-NG's bundled abp.js is an old, full Adblock Plus runtime. It
-    works in macOS CFNetwork, but modern Linux PAC engines (notably Firefox)
-    can time out while parsing/initialising thousands of ABP objects. Linux
-    therefore preprocesses domain rules in Python and serves a small matcher.
-    """
+    """Extract fast domain rules while preserving whitelist precedence."""
     proxy: set[str] = set()
     direct: set[str] = set()
     for raw_rule in merged_abp_rules(config):
@@ -213,13 +230,7 @@ def build_global_pac(config: AppConfig) -> str:
 
 
 def build_pac(config: AppConfig) -> str:
-    """Build a compact cross-browser PAC from GFWList/custom domain rules.
-
-    The generated arrays are sorted and searched with binary search. Matching a
-    hostname only walks its DNS suffixes, so PAC evaluation remains fast even
-    with the full GFWList and avoids browser-specific failures of the legacy
-    ABP JavaScript engine used by the macOS app.
-    """
+    """Build a compact cross-browser PAC from GFWList/custom domain rules."""
     proxy_domains, direct_domains = _domain_sets(config)
     proxy_json = json.dumps(sorted(proxy_domains), ensure_ascii=False, separators=(",", ":"))
     direct_json = json.dumps(sorted(direct_domains), ensure_ascii=False, separators=(",", ":"))
