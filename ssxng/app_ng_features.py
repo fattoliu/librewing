@@ -25,17 +25,59 @@ TRAY_ICONS = {
 
 
 def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, "-m", "ssxng.modern_ui4", *args],
-        check=False,
+    """Run a GTK4 helper modally without sharing the tray's signal group.
+
+    GTK3 owns the tray process while GTK4/libadwaita windows run in helper
+    processes.  Keep modal helpers isolated from terminal SIGINT so Ctrl+C is
+    handled by the tray first; if the tray is interrupted, explicitly terminate
+    the helper instead of letting both processes print KeyboardInterrupt traces.
+    """
+    command = [sys.executable, "-m", "ssxng.modern_ui4", *args]
+    process = subprocess.Popen(
+        command,
         text=True,
-        capture_output=capture,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate()
+    except KeyboardInterrupt:
+        process.terminate()
+        try:
+            process.wait(timeout=1.5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        raise
+    return subprocess.CompletedProcess(
+        command,
+        process.returncode,
+        stdout if capture else None,
+        stderr if capture else None,
+    )
+
+
+def _spawn_ui4(*args: str) -> None:
+    """Present a non-modal GTK4 window without blocking the GTK3 tray loop."""
+    subprocess.Popen(
+        [sys.executable, "-m", "ssxng.modern_ui4", *args],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
     )
 
 
 def _alert4(self, message: str, kind=None) -> None:
     del self, kind
-    _ui4("alert", str(message))
+    # Alerts are notifications/results, not modal workflow steps.  Waiting for
+    # the helper here would block Gtk.main(), making every tray menu item appear
+    # frozen until the alert was dismissed (especially visible after latency
+    # tests).  Fire-and-forget keeps the indicator fully responsive.
+    _spawn_ui4("alert", str(message))
 
 
 def _update_indicator_icon(self) -> None:
@@ -210,11 +252,11 @@ def _on_edit_rules4(self, _item) -> None:
 
 
 def _on_logs4(self, _item) -> None:
-    _ui4("logs")
+    _spawn_ui4("logs")
 
 
 def _on_about4(self, _item) -> None:
-    _ui4("about")
+    _spawn_ui4("about")
 
 
 def _on_share_server4(self, _item) -> None:
@@ -242,7 +284,7 @@ def _on_share_server4(self, _item) -> None:
 
 def _on_share_all_servers4(self, _item) -> None:
     urls = "\n".join(legacy_app.build_ss_url(profile) for profile in self.config.profiles)
-    _ui4("viewer", tr("Share All Server URLs…"), urls)
+    _spawn_ui4("viewer", tr("Share All Server URLs…"), urls)
 
 
 def _choose_file(mode: str, title: str, suggested: str = "") -> str | None:
@@ -283,7 +325,7 @@ def _on_export_server_file4(self, _item) -> None:
 
 
 def _on_show_example_server_file4(self, _item) -> None:
-    _ui4("viewer", tr("Show Example Server Configuration…"), example_json())
+    _spawn_ui4("viewer", tr("Show Example Server Configuration…"), example_json())
 
 
 def _on_export_diagnostics4(self, _item) -> None:
