@@ -24,6 +24,20 @@ def test_resolve_plugin_rejects_non_executable(tmp_path):
         plugins.resolve_plugin(str(plugin))
 
 
+def test_bundled_plugin_is_preferred_over_path(monkeypatch, tmp_path):
+    bundled_dir = tmp_path / "bin"
+    bundled_dir.mkdir()
+    bundled = bundled_dir / "obfs-local"
+    bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    bundled.chmod(0o755)
+
+    monkeypatch.setattr(plugins, "BUNDLED_BIN_DIR", bundled_dir)
+    monkeypatch.setattr(plugins.shutil, "which", lambda _name: "/usr/local/bin/obfs-local")
+
+    assert plugins.resolve_plugin("obfs-local") == str(bundled)
+    assert plugins.default_plugin_value() == "obfs-local"
+
+
 def test_discover_plugins(monkeypatch):
     def fake_which(name: str):
         return "/usr/local/bin/obfs-local" if name == "obfs-local" else None
