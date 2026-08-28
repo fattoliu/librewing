@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -22,6 +23,22 @@ TRAY_ICONS = {
     "global": "shadowsocksx-ng-linux-global",
     "manual": "shadowsocksx-ng-linux-manual",
 }
+
+
+def _display_cells(text: str) -> int:
+    """Approximate the visual width GNOME Shell uses for menu labels."""
+    width = 0
+    for char in text:
+        if unicodedata.combining(char):
+            continue
+        width += 2 if unicodedata.east_asian_width(char) in ("W", "F") else 1
+    return width
+
+
+def _reserve_menu_width(label: str, target_cells: int) -> str:
+    """Pad a label with non-breaking spaces so inline submenus do not resize the shell menu."""
+    missing = max(0, target_cells - _display_cells(label))
+    return label + ("\u00a0" * missing)
 
 
 def _run_helper(module: str, *args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
@@ -398,10 +415,21 @@ def _rebuild_menu(self) -> None:
         menu.append(item)
     menu.append(Gtk.SeparatorMenuItem())
 
-    servers_item = app_beta._menu_item(f"{tr('Servers')} - {self.config.profile.name}")
+    server_labels = [
+        f"{profile.name} ({profile.server}:{profile.server_port})"
+        for profile in self.config.profiles
+    ]
+    server_labels.append(tr("Server Settings…"))
+    # GNOME Shell renders AppIndicator submenus inline and recomputes the menu
+    # width when they open. Reserve the widest server-row width up front so
+    # expanding/collapsing the server section does not make the whole popup jump.
+    submenu_width = max((_display_cells(label) for label in server_labels), default=0)
+    server_parent = f"{tr('Servers')} - {self.config.profile.name}"
+    servers_item = app_beta._menu_item(_reserve_menu_width(server_parent, submenu_width))
     servers = Gtk.Menu()
     for i, profile in enumerate(self.config.profiles):
-        item = Gtk.CheckMenuItem(label=f"{profile.name} ({profile.server}:{profile.server_port})")
+        label = f"{profile.name} ({profile.server}:{profile.server_port})"
+        item = Gtk.CheckMenuItem(label=label)
         item.set_draw_as_radio(True)
         item.set_active(i == self.config.active_profile)
         item.connect("activate", self.on_profile, i)
@@ -459,6 +487,7 @@ def main() -> int:
     app_beta._alert = _alert4
     app_beta._on_edit_server = _on_edit_server
     app_beta._on_update_gfwlist = _on_update_gfwlist4
+    app_beta._on_test_latency = _on_test_latency4
     app_beta._on_share_server = _on_share_server4
     app_beta._on_share_all_servers = _on_share_all_servers4
     app_beta._on_import_server_file = _on_import_server_file4
