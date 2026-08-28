@@ -3,8 +3,10 @@ from __future__ import annotations
 import os
 import shutil
 from dataclasses import dataclass
+from pathlib import Path
 
 
+BUNDLED_BIN_DIR = Path("/usr/lib/shadowsocksx-ng-linux/bin")
 KNOWN_PLUGINS = (
     "obfs-local",
     "v2ray-plugin",
@@ -39,20 +41,39 @@ class PluginList(list[PluginInfo]):
         return sum(1 for plugin in self if plugin.available)
 
 
+def bundled_executable(name: str) -> str:
+    """Return an executable shipped inside the application package, if present."""
+    candidate = BUNDLED_BIN_DIR / name
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return ""
+
+
+def find_plugin(name: str) -> str:
+    """Prefer the application-bundled plugin, then fall back to the system PATH."""
+    return bundled_executable(name) or shutil.which(name) or ""
+
+
+def default_plugin_value(name: str = "obfs-local") -> str:
+    """Return a portable plugin value for new profiles when that plugin exists."""
+    return name if find_plugin(name) else ""
+
+
 def discover_plugins(names: tuple[str, ...] = KNOWN_PLUGINS) -> PluginList:
     result = PluginList()
     for name in names:
-        path = shutil.which(name)
-        result.append(PluginInfo(name=name, path=path or "", available=bool(path)))
+        path = find_plugin(name)
+        result.append(PluginInfo(name=name, path=path, available=bool(path)))
     return result
 
 
 def resolve_plugin(value: str) -> str:
     """Resolve a SIP003 plugin name or absolute path to an executable.
 
-    Empty plugin values are allowed and resolve to an empty string. Relative paths
-    containing a slash are intentionally rejected because desktop launch working
-    directories are not stable.
+    Empty plugin values are allowed and resolve to an empty string. Bare command
+    names first resolve against binaries bundled with ShadowsocksX-NG Linux, then
+    against PATH. Relative paths containing a slash are rejected because desktop
+    launch working directories are not stable.
     """
     value = value.strip()
     if not value:
@@ -65,9 +86,9 @@ def resolve_plugin(value: str) -> str:
         return value
     if "/" in value:
         raise ValueError("Plugin must be a command in PATH or an absolute executable path")
-    path = shutil.which(value)
+    path = find_plugin(value)
     if not path:
-        raise ValueError(f"Plugin not found in PATH: {value}")
+        raise ValueError(f"Plugin not found: {value}")
     return path
 
 
