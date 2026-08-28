@@ -17,6 +17,7 @@ from .i18n import system_language, tr
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
 PAGE_PAD = 24
+ACTION_BOTTOM = 16
 GROUP_GAP = 20
 CONTROL_GAP = 12
 
@@ -66,7 +67,7 @@ def _footer(cancel_cb, primary_label: str, primary_cb) -> Gtk.Box:
     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
     box.set_halign(Gtk.Align.END)
     box.set_margin_top(18)
-    box.set_margin_bottom(PAGE_PAD)
+    box.set_margin_bottom(ACTION_BOTTOM)
     box.set_margin_start(PAGE_PAD)
     box.set_margin_end(PAGE_PAD)
     box.append(_button(tr("Cancel"), cancel_cb))
@@ -78,7 +79,7 @@ def _single_footer(label: str, callback, *, suggested: bool = True) -> Gtk.Box:
     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
     box.set_halign(Gtk.Align.END)
     box.set_margin_top(18)
-    box.set_margin_bottom(PAGE_PAD)
+    box.set_margin_bottom(ACTION_BOTTOM)
     box.set_margin_start(PAGE_PAD)
     box.set_margin_end(PAGE_PAD)
     box.append(_button(label, callback, suggested=suggested))
@@ -98,8 +99,6 @@ def _window(
     header = Adw.HeaderBar()
     header.set_title_widget(Gtk.Label(label=title))
     toolbar.add_top_bar(header)
-    # Keep the chrome quiet: spacing and groups should define hierarchy,
-    # not full-width separators.
     try:
         toolbar.set_top_bar_style(Adw.ToolbarStyle.FLAT)
     except Exception:
@@ -167,6 +166,7 @@ class TextInputApp(Adw.Application):
         content.set_margin_top(PAGE_PAD)
         content.set_margin_start(PAGE_PAD)
         content.set_margin_end(PAGE_PAD)
+        content.set_vexpand(True)
         body.append(content)
         self.entry = Gtk.Entry()
         self.entry.set_placeholder_text(self.placeholder)
@@ -449,7 +449,7 @@ class LogsApp(Adw.Application):
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
         footer.set_margin_top(18)
-        footer.set_margin_bottom(PAGE_PAD)
+        footer.set_margin_bottom(ACTION_BOTTOM)
         footer.set_margin_start(PAGE_PAD)
         footer.set_margin_end(PAGE_PAD)
         footer.append(_button(tr("Clear"), self._clear))
@@ -532,7 +532,7 @@ class ShareApp(Adw.Application):
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
         footer.set_margin_top(18)
-        footer.set_margin_bottom(PAGE_PAD)
+        footer.set_margin_bottom(ACTION_BOTTOM)
         footer.set_margin_start(PAGE_PAD)
         footer.set_margin_end(PAGE_PAD)
         footer.append(_button(tr("Close"), lambda *_: self.quit()))
