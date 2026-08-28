@@ -14,6 +14,7 @@ from .config import AppConfig, ServerProfile
 from .i18n import tr
 
 PAGE_PAD = 24
+ACTION_BOTTOM = 16
 GROUP_GAP = 20
 CIPHERS = [
     "aes-256-gcm",
@@ -87,7 +88,6 @@ class ServerSettingsApp(Adw.Application):
     def do_activate(self) -> None:
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title(tr("Server Settings"))
-        # Keep the full form and footer visible at normal desktop resolutions.
         self.window.set_default_size(1000, 760)
 
         toolbar = Adw.ToolbarView()
@@ -104,7 +104,6 @@ class ServerSettingsApp(Adw.Application):
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         toolbar.set_content(outer)
 
-        # No Gtk.Paned / Gtk.Separator: whitespace defines the two columns.
         content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=32)
         content.set_margin_top(PAGE_PAD)
         content.set_margin_start(PAGE_PAD)
@@ -117,8 +116,6 @@ class ServerSettingsApp(Adw.Application):
         content.append(left)
 
         self.listbox = Gtk.ListBox()
-        # navigation-sidebar gives the selected row a native Adwaita highlight
-        # without the boxed-list border/shadow visible at the bottom of the old pane.
         self.listbox.add_css_class("navigation-sidebar")
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.connect("row-selected", self._on_row_selected)
@@ -145,7 +142,6 @@ class ServerSettingsApp(Adw.Application):
 
         right_scroll = Gtk.ScrolledWindow()
         right_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        # Reserve real scrollbar width instead of painting it over row actions.
         right_scroll.set_overlay_scrolling(False)
         right_scroll.set_hexpand(True)
         right_scroll.set_vexpand(True)
@@ -192,7 +188,7 @@ class ServerSettingsApp(Adw.Application):
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
         footer.set_margin_top(16)
-        footer.set_margin_bottom(20)
+        footer.set_margin_bottom(ACTION_BOTTOM)
         footer.set_margin_start(PAGE_PAD)
         footer.set_margin_end(PAGE_PAD)
         footer.append(self._button(tr("Cancel"), self._on_cancel))
