@@ -8,7 +8,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, urlsplit
 
-from .config import LOG_FILE
+from .config import GFWLIST_FILE, LOG_FILE
 from .core import (
     ShadowsocksCore,
     SystemProxy,
@@ -18,7 +18,7 @@ from .core import (
     _split_host_port,
     port_available,
 )
-from .pac import build_global_pac, build_pac
+from .pac import build_global_pac, build_pac, update_gfwlist
 
 
 def _connect_host(value: str) -> str:
@@ -250,6 +250,23 @@ class NgPacServer:
 
 
 class NgSystemProxy(SystemProxy):
+    def pac_mode(self) -> None:
+        # A completely fresh install has no cached GFWList yet. Bootstrap it
+        # through the already-running local SOCKS tunnel before enabling PAC,
+        # so first-time users do not have to discover "Update GFWList" first.
+        if not GFWLIST_FILE.exists() or GFWLIST_FILE.stat().st_size == 0:
+            update_gfwlist(self.config, timeout=45)
+
+        # Include the rule-file mtime in the PAC URL. GNOME/Chromium can cache a
+        # previously fetched PAC despite no-cache response headers; changing the
+        # URL guarantees a fresh fetch whenever the rule file changes.
+        revision = int(GFWLIST_FILE.stat().st_mtime_ns)
+        url = f"http://127.0.0.1:{self.config.pac_port}/proxy.pac?v={revision}"
+        self._gsettings("org.gnome.system.proxy", "autoconfig-url", repr(url))
+        self._gsettings("org.gnome.system.proxy", "mode", "'auto'")
+        self.config.mode = "pac"
+        self.config.save()
+
     def external_pac_mode(self) -> None:
         url = self.config.external_pac_url.strip()
         if not url.startswith(("http://", "https://")):
