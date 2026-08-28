@@ -24,9 +24,9 @@ TRAY_ICONS = {
 }
 
 
-def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
+def _run_helper(module: str, *args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
     """Run a GTK4 helper modally without sharing the tray's signal group."""
-    command = [sys.executable, "-m", "ssxng.modern_ui4", *args]
+    command = [sys.executable, "-m", module, *args]
     process = subprocess.Popen(
         command,
         text=True,
@@ -51,6 +51,14 @@ def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
         stdout if capture else None,
         stderr if capture else None,
     )
+
+
+def _ui4(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
+    return _run_helper("ssxng.modern_ui4", *args, capture=capture)
+
+
+def _feedback4(*args: str) -> subprocess.CompletedProcess[str]:
+    return _run_helper("ssxng.feedback_ui4", *args)
 
 
 def _spawn_ui4(*args: str) -> None:
@@ -257,6 +265,15 @@ def _on_edit_rules4(self, _item) -> None:
     self.rebuild_menu()
 
 
+def _on_update_gfwlist4(self, _item) -> None:
+    """One foreground window: progress is replaced by success/error in place."""
+    try:
+        _feedback4("gfwlist")
+        _reload_config(self)
+    finally:
+        self.rebuild_menu()
+
+
 def _on_logs4(self, _item) -> None:
     _spawn_ui4("logs")
 
@@ -426,6 +443,7 @@ def main() -> int:
     legacy_app.TrayApp.on_preferences = _on_preferences
     legacy_app.TrayApp.on_import_url = _on_import_url4
     legacy_app.TrayApp.on_edit_rules = _on_edit_rules4
+    legacy_app.TrayApp.on_update_gfwlist = _on_update_gfwlist4
     legacy_app.TrayApp.on_logs = _on_logs4
     legacy_app.TrayApp.on_about = _on_about4
 
@@ -434,6 +452,7 @@ def main() -> int:
     # silently restore the legacy GTK3 dialogs after this function returns.
     app_beta._alert = _alert4
     app_beta._on_edit_server = _on_edit_server
+    app_beta._on_update_gfwlist = _on_update_gfwlist4
     app_beta._on_share_server = _on_share_server4
     app_beta._on_share_all_servers = _on_share_all_servers4
     app_beta._on_import_server_file = _on_import_server_file4
