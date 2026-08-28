@@ -15,6 +15,17 @@ from .i18n import tr
 
 PAGE_PAD = 24
 GROUP_GAP = 20
+CIPHERS = [
+    "aes-256-gcm",
+    "aes-192-gcm",
+    "aes-128-gcm",
+    "chacha20-ietf-poly1305",
+    "xchacha20-ietf-poly1305",
+    "aes-256-cfb",
+    "aes-192-cfb",
+    "aes-128-cfb",
+    "chacha20-ietf",
+]
 
 
 class ServerSettingsApp(Adw.Application):
@@ -28,6 +39,7 @@ class ServerSettingsApp(Adw.Application):
         self.active_index = min(self.config.active_profile, len(self.profiles) - 1)
         self.loading = False
         self.rows: list[Gtk.ListBoxRow] = []
+        self.cipher_values = list(CIPHERS)
 
     @staticmethod
     def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
@@ -52,10 +64,31 @@ class ServerSettingsApp(Adw.Application):
         )
         return Adw.SpinRow(title=title, adjustment=adjustment)
 
+    def _install_css(self) -> None:
+        provider = Gtk.CssProvider()
+        provider.load_from_data(
+            b"""
+            .server-list-scroll undershoot,
+            .server-list-scroll overshoot {
+                background: none;
+                box-shadow: none;
+            }
+            .server-list-scroll {
+                background: transparent;
+            }
+            """
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            self.window.get_display(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
     def do_activate(self) -> None:
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title(tr("Server Settings"))
-        self.window.set_default_size(900, 620)
+        # Keep the full form and footer visible at normal desktop resolutions.
+        self.window.set_default_size(1000, 760)
 
         toolbar = Adw.ToolbarView()
         header = Adw.HeaderBar()
@@ -66,6 +99,7 @@ class ServerSettingsApp(Adw.Application):
         except Exception:
             pass
         self.window.set_content(toolbar)
+        self._install_css()
 
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         toolbar.set_content(outer)
@@ -79,15 +113,19 @@ class ServerSettingsApp(Adw.Application):
         outer.append(content)
 
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        left.set_size_request(245, -1)
+        left.set_size_request(250, -1)
         content.append(left)
 
         self.listbox = Gtk.ListBox()
-        self.listbox.add_css_class("boxed-list")
+        # navigation-sidebar gives the selected row a native Adwaita highlight
+        # without the boxed-list border/shadow visible at the bottom of the old pane.
+        self.listbox.add_css_class("navigation-sidebar")
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.connect("row-selected", self._on_row_selected)
         scroller = Gtk.ScrolledWindow()
+        scroller.add_css_class("server-list-scroll")
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_overlay_scrolling(False)
         scroller.set_child(self.listbox)
         scroller.set_vexpand(True)
         left.append(scroller)
@@ -107,15 +145,18 @@ class ServerSettingsApp(Adw.Application):
 
         right_scroll = Gtk.ScrolledWindow()
         right_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        # Reserve real scrollbar width instead of painting it over row actions.
+        right_scroll.set_overlay_scrolling(False)
         right_scroll.set_hexpand(True)
         right_scroll.set_vexpand(True)
         content.append(right_scroll)
 
-        clamp = Adw.Clamp(maximum_size=640, tightening_threshold=540)
+        clamp = Adw.Clamp(maximum_size=660, tightening_threshold=560)
+        clamp.set_margin_end(6)
         right_scroll.set_child(clamp)
 
         right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=GROUP_GAP)
-        right.set_margin_bottom(8)
+        right.set_margin_bottom(12)
         clamp.set_child(right)
 
         connection = Adw.PreferencesGroup(title=tr("Server"))
@@ -124,7 +165,10 @@ class ServerSettingsApp(Adw.Application):
         self.server = self._entry_row(tr("Server"))
         self.server_port = self._spin_row(tr("Server port"))
         self.password = Adw.PasswordEntryRow(title=tr("Password"))
-        self.cipher = self._entry_row(tr("Cipher"))
+
+        self.cipher_model = Gtk.StringList.new(self.cipher_values)
+        self.cipher = Adw.ComboRow(title=tr("Cipher"), model=self.cipher_model)
+
         for row in (self.name, self.server, self.server_port, self.password, self.cipher):
             connection.add(row)
 
@@ -147,22 +191,36 @@ class ServerSettingsApp(Adw.Application):
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
-        footer.set_margin_top(18)
-        footer.set_margin_bottom(PAGE_PAD)
+        footer.set_margin_top(16)
+        footer.set_margin_bottom(20)
         footer.set_margin_start(PAGE_PAD)
         footer.set_margin_end(PAGE_PAD)
         footer.append(self._button(tr("Cancel"), self._on_cancel))
         footer.append(self._button(tr("Save"), self._on_save, suggested=True))
         outer.append(footer)
 
-        for widget in (self.name, self.server, self.password, self.cipher, self.plugin, self.plugin_opts):
+        for widget in (self.name, self.server, self.password, self.plugin, self.plugin_opts):
             widget.connect("changed", self._on_field_changed)
         self.server_port.connect("notify::value", self._on_field_changed)
         self.local_port.connect("notify::value", self._on_field_changed)
+        self.cipher.connect("notify::selected", self._on_field_changed)
 
         self._refresh_list()
         self.window.connect("close-request", self._on_close)
         self.window.present()
+
+    def _ensure_cipher(self, value: str) -> int:
+        method = value or "aes-256-gcm"
+        if method not in self.cipher_values:
+            self.cipher_values.append(method)
+            self.cipher_model.append(method)
+        return self.cipher_values.index(method)
+
+    def _selected_cipher(self) -> str:
+        index = self.cipher.get_selected()
+        if 0 <= index < len(self.cipher_values):
+            return self.cipher_values[index]
+        return "aes-256-gcm"
 
     def _refresh_list(self) -> None:
         while child := self.listbox.get_first_child():
@@ -195,7 +253,7 @@ class ServerSettingsApp(Adw.Application):
             self.server.set_text(p.server)
             self.server_port.set_value(p.server_port)
             self.password.set_text(p.password)
-            self.cipher.set_text(p.method)
+            self.cipher.set_selected(self._ensure_cipher(p.method))
             self.plugin.set_text(p.plugin)
             self.plugin_opts.set_text(p.plugin_opts)
             self.local_port.set_value(p.local_port)
@@ -210,7 +268,7 @@ class ServerSettingsApp(Adw.Application):
         p.server = self.server.get_text().strip()
         p.server_port = int(self.server_port.get_value())
         p.password = self.password.get_text()
-        p.method = self.cipher.get_text().strip() or "aes-256-gcm"
+        p.method = self._selected_cipher()
         p.plugin = self.plugin.get_text().strip()
         p.plugin_opts = self.plugin_opts.get_text().strip()
         p.local_port = int(self.local_port.get_value())
