@@ -17,6 +17,7 @@ from .i18n import system_language, tr
 from .pac import update_gfwlist
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Feedback"
+ACTION_BOTTOM = 16
 
 
 def _localize(zh_cn: str, zh_tw: str, en: str) -> str:
@@ -51,12 +52,27 @@ def _base_window(
 
     body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     body.set_margin_top(14)
-    body.set_margin_bottom(10)
+    body.set_margin_bottom(ACTION_BOTTOM)
     body.set_margin_start(18)
     body.set_margin_end(18)
     body.set_vexpand(True)
     toolbar.set_content(body)
     return win, body
+
+
+def _bottom_actions(*buttons: Gtk.Button) -> Gtk.Box:
+    actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+    actions.set_halign(Gtk.Align.END)
+    for button in buttons:
+        actions.append(button)
+    return actions
+
+
+def _push_actions_to_bottom(body: Gtk.Box, actions: Gtk.Box) -> None:
+    spacer = Gtk.Box()
+    spacer.set_vexpand(True)
+    body.append(spacer)
+    body.append(actions)
 
 
 class AlertWindowApp(Adw.Application):
@@ -84,17 +100,10 @@ class AlertWindowApp(Adw.Application):
         label.set_max_width_chars(48)
         body.append(label)
 
-        spacer = Gtk.Box()
-        spacer.set_vexpand(True)
-        body.append(spacer)
-
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        actions.set_halign(Gtk.Align.END)
         ok = Gtk.Button(label=tr("OK"))
         ok.add_css_class("suggested-action")
         ok.connect("clicked", lambda *_: self.quit())
-        actions.append(ok)
-        body.append(actions)
+        _push_actions_to_bottom(body, _bottom_actions(ok))
 
         win.connect("close-request", self._close)
         win.present()
@@ -135,13 +144,8 @@ class GfwListUpdateApp(Adw.Application):
         row.append(self.label)
         body.append(row)
 
-        spacer = Gtk.Box()
-        spacer.set_vexpand(True)
-        body.append(spacer)
-
-        self.actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.actions.set_halign(Gtk.Align.END)
-        body.append(self.actions)
+        self.actions = _bottom_actions()
+        _push_actions_to_bottom(body, self.actions)
 
         self.win.connect("close-request", self._close)
         self.win.present()
