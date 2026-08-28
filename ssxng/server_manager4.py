@@ -69,6 +69,15 @@ class ServerSettingsApp(Adw.Application):
         provider = Gtk.CssProvider()
         provider.load_from_data(
             b"""
+            .server-list-frame {
+                border: 1px solid alpha(currentColor, 0.14);
+                border-radius: 12px;
+                background-color: alpha(currentColor, 0.025);
+            }
+            .server-list-frame scrolledwindow,
+            .server-list-frame list {
+                background: transparent;
+            }
             .server-list-scroll undershoot,
             .server-list-scroll overshoot {
                 background: none;
@@ -119,13 +128,23 @@ class ServerSettingsApp(Adw.Application):
         self.listbox.add_css_class("navigation-sidebar")
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.connect("row-selected", self._on_row_selected)
+
         scroller = Gtk.ScrolledWindow()
         scroller.add_css_class("server-list-scroll")
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroller.set_overlay_scrolling(False)
         scroller.set_child(self.listbox)
         scroller.set_vexpand(True)
-        left.append(scroller)
+
+        # A dedicated frame restores the visual boundary without reintroducing
+        # the old scroller overshoot shadow that looked like a dark half-border
+        # at the rounded bottom corners.
+        list_frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        list_frame.add_css_class("server-list-frame")
+        list_frame.set_overflow(Gtk.Overflow.HIDDEN)
+        list_frame.set_vexpand(True)
+        list_frame.append(scroller)
+        left.append(list_frame)
 
         controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         add = Gtk.Button(icon_name="list-add-symbolic")
