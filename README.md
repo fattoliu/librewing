@@ -2,7 +2,7 @@
 
 A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG), with a tray-first workflow and GNOME integration.
 
-The project keeps the familiar ShadowsocksX-NG concepts—external `ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
+The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
 
 ## Current feature set
 
@@ -13,16 +13,17 @@ The project keeps the familiar ShadowsocksX-NG concepts—external `ss-local`, S
 - Server settings window with SIP003 plugin/plugin options
 - `ss://` URL import, clipboard import, QR scan and QR sharing
 - Server TCP latency test
-- External `ss-local` lifecycle management and orphan-process recovery
+- Managed `ss-local` lifecycle and orphan-process recovery
 - Native local HTTP → SOCKS5 bridge for terminal/application proxy use
 - Local PAC server with GFWList and custom user rules
-- Background GFWList update with cached last-known-good data
+- Foreground GFWList update with cached last-known-good data
 - GNOME system proxy integration
 - Unified NG-style Preferences window: General / Advanced / HTTP / Network Interface
 - Start-at-login integration
 - Localized UI following the system locale (Simplified Chinese, Traditional Chinese, English fallback)
 - Logs, diagnostics export, update/help links
-- Offline `.deb` package build; tray icon resources are vendored in the repository
+- Native `.deb` package with automatic `shadowsocks-libev` dependency installation
+- Bundled `obfs-local` runtime for simple-obfs server profiles
 - Health-check CLI via `ssx-ng-tool health`
 - GitHub Actions unit, desktop-import and Debian-package smoke tests
 
@@ -76,12 +77,20 @@ ssx-ng-tool health
 
 The Debian package installs the desktop client into `/usr/bin` and its Python modules under `/usr/lib/shadowsocksx-ng-linux`.
 
-If the selected server uses `simple-obfs`, install `obfs-local` separately and configure the server profile, for example:
+Users do **not** need to install `shadowsocks-libev` or `simple-obfs` manually before using the application:
+
+- `shadowsocks-libev` is declared as a Debian dependency, so `apt` installs `ss-local` automatically.
+- `obfs-local` is shipped inside the application package at `/usr/lib/shadowsocksx-ng-linux/bin/obfs-local`.
+- A server profile can simply use `obfs-local` as its plugin value; the application resolves the bundled executable before looking in the system `PATH`.
+
+Example:
 
 ```text
-Plugin: /usr/local/bin/obfs-local
+Plugin: obfs-local
 Plugin options: obfs=tls
 ```
+
+The current bundled simple-obfs runtime packaging targets Ubuntu 26.04 on amd64/arm64. Other SIP003 plugins remain externally installable and are detected automatically.
 
 ## Terminal proxy
 
@@ -141,19 +150,27 @@ ruff check ssxng tests
 
 Active development is on `dev/mvp`.
 
+### Debian package build
+
+```bash
+bash scripts/build-deb.sh
+```
+
+By default the build embeds `obfs-local`. A clean build downloads an Ubuntu 26.04 amd64/arm64 simple-obfs package at build time and extracts only the client runtime into our package. Development machines that already have `obfs-local` may reuse that local executable. Set `BUNDLE_SIMPLE_OBFS=0` only for special development builds that intentionally omit simple-obfs support.
+
 ## MVP release checklist
 
 Before tagging a release, verify:
 
 1. PAC, Global, Manual and External PAC mode switching.
 2. Browser access and terminal access through the HTTP bridge.
-3. Server switching, invalid server handling, plugin presence and port conflicts.
+3. Server switching, invalid server handling, bundled simple-obfs and port conflicts.
 4. GFWList success/failure behavior and user PAC rules.
 5. Normal Quit, `Ctrl+C`, duplicate launch and recovery after an unclean previous exit.
 6. Preferences persistence and start-at-login behavior.
 7. Dialog layout under light/dark themes and Simplified Chinese/English locales.
 8. `ssx-ng-tool health` reports all configured listeners correctly.
-9. `.deb` install, reinstall/upgrade and package payload smoke checks.
+9. Clean-machine `.deb` install: `ss-local` is installed automatically and bundled `obfs-local` is executable without any manual prerequisite setup.
 
 ## License
 
