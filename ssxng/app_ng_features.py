@@ -274,6 +274,11 @@ def _on_update_gfwlist4(self, _item) -> None:
         self.rebuild_menu()
 
 
+def _on_test_latency4(self, _item) -> None:
+    """Show the latency progress window immediately and replace it with the result."""
+    _feedback4("latency")
+
+
 def _on_logs4(self, _item) -> None:
     _spawn_ui4("logs")
 
@@ -444,6 +449,7 @@ def main() -> int:
     legacy_app.TrayApp.on_import_url = _on_import_url4
     legacy_app.TrayApp.on_edit_rules = _on_edit_rules4
     legacy_app.TrayApp.on_update_gfwlist = _on_update_gfwlist4
+    legacy_app.TrayApp.on_test_latency = _on_test_latency4
     legacy_app.TrayApp.on_logs = _on_logs4
     legacy_app.TrayApp.on_about = _on_about4
 
