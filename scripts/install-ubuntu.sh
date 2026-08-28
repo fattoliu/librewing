@@ -15,6 +15,22 @@ fi
 
 cd "$ROOT"
 
+# A running tray process keeps already-imported Python modules in memory. During
+# rapid development that can make a freshly reinstalled package appear to have
+# "not changed" at all: the old tray keeps dispatching its old callbacks even
+# though /usr/lib contains the new files. Stop only this application's launcher
+# before replacing the package so the next start always loads the new code.
+if pgrep -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' >/dev/null 2>&1; then
+  echo "Stopping running ShadowsocksX-NG Linux instance..."
+  pkill -TERM -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ! pgrep -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+fi
+
 # Build a native .deb from the checked-out source. The package declares all
 # runtime dependencies, so apt installs them without touching pip/pipx or the
 # externally-managed system Python environment (PEP 668).
