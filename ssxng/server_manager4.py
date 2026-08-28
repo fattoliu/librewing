@@ -14,10 +14,11 @@ from .config import AppConfig, ServerProfile
 from .i18n import tr
 
 PAGE_PAD = 24
+GROUP_GAP = 20
 
 
 class ServerSettingsApp(Adw.Application):
-    """GTK4/libadwaita server editor, isolated from the GTK3 tray process."""
+    """Modern GTK4/libadwaita server editor, isolated from the GTK3 tray."""
 
     def __init__(self) -> None:
         super().__init__(application_id="io.github.fattoliu.shadowsocksxng.ServerSettings")
@@ -42,13 +43,19 @@ class ServerSettingsApp(Adw.Application):
 
     @staticmethod
     def _spin_row(title: str, minimum: int = 1, maximum: int = 65535) -> Adw.SpinRow:
-        adjustment = Gtk.Adjustment(value=minimum, lower=minimum, upper=maximum, step_increment=1, page_increment=10)
+        adjustment = Gtk.Adjustment(
+            value=minimum,
+            lower=minimum,
+            upper=maximum,
+            step_increment=1,
+            page_increment=10,
+        )
         return Adw.SpinRow(title=title, adjustment=adjustment)
 
     def do_activate(self) -> None:
         self.window = Adw.ApplicationWindow(application=self)
         self.window.set_title(tr("Server Settings"))
-        self.window.set_default_size(880, 590)
+        self.window.set_default_size(900, 620)
 
         toolbar = Adw.ToolbarView()
         header = Adw.HeaderBar()
@@ -63,9 +70,8 @@ class ServerSettingsApp(Adw.Application):
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         toolbar.set_content(outer)
 
-        # Deliberately avoid Gtk.Paned here. The old wide handle drew a heavy,
-        # full-height divider that made the window look like a prototype.
-        content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=28)
+        # No Gtk.Paned / Gtk.Separator: whitespace defines the two columns.
+        content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=32)
         content.set_margin_top(PAGE_PAD)
         content.set_margin_start(PAGE_PAD)
         content.set_margin_end(PAGE_PAD)
@@ -73,7 +79,7 @@ class ServerSettingsApp(Adw.Application):
         outer.append(content)
 
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        left.set_size_request(250, -1)
+        left.set_size_request(245, -1)
         content.append(left)
 
         self.listbox = Gtk.ListBox()
@@ -105,37 +111,30 @@ class ServerSettingsApp(Adw.Application):
         right_scroll.set_vexpand(True)
         content.append(right_scroll)
 
-        clamp = Adw.Clamp(maximum_size=620, tightening_threshold=520)
+        clamp = Adw.Clamp(maximum_size=640, tightening_threshold=540)
         right_scroll.set_child(clamp)
 
-        form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
-        form.set_margin_bottom(8)
-        clamp.set_child(form)
+        right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=GROUP_GAP)
+        right.set_margin_bottom(8)
+        clamp.set_child(right)
 
-        group = Adw.PreferencesGroup()
-        form.append(group)
-
+        connection = Adw.PreferencesGroup(title=tr("Server"))
+        right.append(connection)
         self.name = self._entry_row(tr("Name"))
         self.server = self._entry_row(tr("Server"))
         self.server_port = self._spin_row(tr("Server port"))
         self.password = Adw.PasswordEntryRow(title=tr("Password"))
-        self.password.set_show_apply_button(False)
         self.cipher = self._entry_row(tr("Cipher"))
+        for row in (self.name, self.server, self.server_port, self.password, self.cipher):
+            connection.add(row)
+
+        advanced = Adw.PreferencesGroup()
+        right.append(advanced)
         self.plugin = self._entry_row(tr("Plugin"))
         self.plugin_opts = self._entry_row(tr("Plugin options"))
         self.local_port = self._spin_row(tr("Local SOCKS port"))
-
-        for row in (
-            self.name,
-            self.server,
-            self.server_port,
-            self.password,
-            self.cipher,
-            self.plugin,
-            self.plugin_opts,
-            self.local_port,
-        ):
-            group.add(row)
+        for row in (self.plugin, self.plugin_opts, self.local_port):
+            advanced.add(row)
 
         note = Gtk.Label(
             label=tr("Tip: select a server on the left to edit it. Add or remove multiple profiles before saving."),
@@ -144,7 +143,7 @@ class ServerSettingsApp(Adw.Application):
             xalign=0,
         )
         note.add_css_class("dim-label")
-        form.append(note)
+        right.append(note)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         footer.set_halign(Gtk.Align.END)
@@ -215,20 +214,24 @@ class ServerSettingsApp(Adw.Application):
         p.plugin = self.plugin.get_text().strip()
         p.plugin_opts = self.plugin_opts.get_text().strip()
         p.local_port = int(self.local_port.get_value())
-        row = self.rows[self.active_index]
-        label = row.get_child()
-        label.set_text(p.name)
+        self.rows[self.active_index].get_child().set_text(p.name)
 
     def _on_add(self, _button) -> None:
         self.profiles.append(
-            ServerProfile(name=f"Server {len(self.profiles) + 1}", plugin=shutil.which("obfs-local") or "")
+            ServerProfile(
+                name=f"Server {len(self.profiles) + 1}",
+                plugin=shutil.which("obfs-local") or "",
+            )
         )
         self.active_index = len(self.profiles) - 1
         self._refresh_list()
 
     def _on_remove(self, _button) -> None:
         if len(self.profiles) <= 1:
-            dialog = Adw.AlertDialog.new(tr("Server Settings"), tr("At least one server profile must remain."))
+            dialog = Adw.AlertDialog.new(
+                tr("Server Settings"),
+                tr("At least one server profile must remain."),
+            )
             dialog.add_response("ok", tr("OK"))
             dialog.present(self.window)
             return
@@ -255,7 +258,7 @@ class ServerSettingsApp(Adw.Application):
 
 def main() -> int:
     app = ServerSettingsApp()
-    app.run(sys.argv)
+    app.run([sys.argv[0]])
     return 0 if app.saved else 2
 
 
