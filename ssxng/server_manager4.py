@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import shutil
 import sys
 
 import gi
@@ -12,6 +11,7 @@ from gi.repository import Adw, Gtk  # noqa: E402
 
 from .config import AppConfig, ServerProfile
 from .i18n import tr
+from .plugins import default_plugin_value
 
 PAGE_PAD = 24
 ACTION_BOTTOM = 16
@@ -136,9 +136,6 @@ class ServerSettingsApp(Adw.Application):
         scroller.set_child(self.listbox)
         scroller.set_vexpand(True)
 
-        # A dedicated frame restores the visual boundary without reintroducing
-        # the old scroller overshoot shadow that looked like a dark half-border
-        # at the rounded bottom corners.
         list_frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         list_frame.add_css_class("server-list-frame")
         list_frame.set_overflow(Gtk.Overflow.HIDDEN)
@@ -293,7 +290,7 @@ class ServerSettingsApp(Adw.Application):
         self.profiles.append(
             ServerProfile(
                 name=f"Server {len(self.profiles) + 1}",
-                plugin=shutil.which("obfs-local") or "",
+                plugin=default_plugin_value(),
             )
         )
         self.active_index = len(self.profiles) - 1
