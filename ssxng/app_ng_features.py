@@ -161,7 +161,11 @@ def _on_edit_server(self, _item) -> None:
     was_core_running = self.core.running()
     was_http_running = self.http.running()
     try:
-        result = subprocess.run([sys.executable, "-m", "ssxng.server_manager4"], check=False)
+        result = subprocess.run(
+            [sys.executable, "-m", "ssxng.server_manager4"],
+            check=False,
+            start_new_session=True,
+        )
         if result.returncode != 0:
             return
         _reload_config(self)
@@ -420,13 +424,16 @@ def main() -> int:
     legacy_app.TrayApp.restore_mode = _restore_mode
     legacy_app.TrayApp.on_mode = _on_mode
     legacy_app.TrayApp.on_preferences = _on_preferences
-    legacy_app.TrayApp.on_edit_server = _on_edit_server
     legacy_app.TrayApp.on_import_url = _on_import_url4
     legacy_app.TrayApp.on_edit_rules = _on_edit_rules4
     legacy_app.TrayApp.on_logs = _on_logs4
     legacy_app.TrayApp.on_about = _on_about4
 
+    # app_beta.main rewires several TrayApp methods from its module-level
+    # symbols. Patch those symbols, not only TrayApp, or app_beta.main will
+    # silently restore the legacy GTK3 dialogs after this function returns.
     app_beta._alert = _alert4
+    app_beta._on_edit_server = _on_edit_server
     app_beta._on_share_server = _on_share_server4
     app_beta._on_share_all_servers = _on_share_all_servers4
     app_beta._on_import_server_file = _on_import_server_file4
