@@ -1,4 +1,4 @@
-name: Package
+name: Package and Release
 
 on:
   workflow_dispatch:
@@ -6,14 +6,48 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   deb:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - name: Build deb
-        run: bash scripts/build-deb.sh
+        env:
+          ARCH: ${{ matrix.arch }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          VERSION="$VERSION" ARCH="$ARCH" bash scripts/build-deb.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: shadowsocksx-ng-linux-deb
+          name: shadowsocksx-ng-linux-${{ matrix.arch }}
           path: dist/*.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: deb
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shadowsocksx-ng-linux-*
+          merge-multiple: true
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.deb \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ShadowsocksX-NG Linux $GITHUB_REF_NAME" \
+            --generate-notes
