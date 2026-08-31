@@ -10,7 +10,6 @@ PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
 ICON_ASSETS="$ROOT/assets/upstream"
 ICON_OUT="$PKG/usr/share/icons/hicolor/44x44/status"
-APP_ICON_OUT="$PKG/usr/share/icons/hicolor/scalable/apps"
 APP_LIB="$PKG/usr/lib/shadowsocksx-ng-linux"
 APP_BIN="$APP_LIB/bin"
 
@@ -22,8 +21,7 @@ mkdir -p \
   "$APP_BIN" \
   "$PKG/usr/share/applications" \
   "$PKG/usr/share/doc/shadowsocksx-ng-linux" \
-  "$ICON_OUT" \
-  "$APP_ICON_OUT"
+  "$ICON_OUT"
 
 cp -R "$ROOT/ssxng" "$APP_LIB/"
 
@@ -34,8 +32,6 @@ bundle_simple_obfs() {
   local system_obfs=""
   system_obfs="$(command -v obfs-local 2>/dev/null || true)"
 
-  # Development builds can reuse an already-installed executable. Official or
-  # clean builders fall through to the architecture-specific package below.
   if [ -n "$system_obfs" ] && [ -x "$system_obfs" ]; then
     echo "Bundling simple-obfs from $system_obfs" >&2
     cp "$system_obfs" "$target"
@@ -124,26 +120,6 @@ for icon_name in "${!ICONS[@]}"; do
   rm -f "$decoded"
 done
 
-# Desktop/application icon. Keep this separate from the monochrome tray icon:
-# GNOME's application grid needs a full-size app icon, otherwise it can fall
-# back to a generic gear. This deliberately restores the compact VPN badge
-# used by the early Linux builds.
-cat > "$APP_ICON_OUT/shadowsocksx-ng-linux.svg" <<'EOF'
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5B8CFF"/>
-      <stop offset="1" stop-color="#6D5DFB"/>
-    </linearGradient>
-  </defs>
-  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#bg)"/>
-  <path d="M128 50c28 19 51 25 68 28v43c0 43-25 72-68 91-43-19-68-48-68-91V78c17-3 40-9 68-28z" fill="#fff" fill-opacity=".16" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>
-  <rect x="69" y="103" width="118" height="55" rx="18" fill="#fff"/>
-  <text x="128" y="140" text-anchor="middle" font-family="DejaVu Sans, sans-serif" font-size="34" font-weight="700" letter-spacing="2" fill="#5D67E8">VPN</text>
-</svg>
-EOF
-chmod 644 "$APP_ICON_OUT/shadowsocksx-ng-linux.svg"
-
 cat > "$PKG/usr/bin/ssx-ng-linux" <<'EOF'
 #!/usr/bin/env bash
 export PYTHONPATH="/usr/lib/shadowsocksx-ng-linux${PYTHONPATH:+:$PYTHONPATH}"
@@ -164,15 +140,13 @@ Type=Application
 Name=ShadowsocksX-NG Linux
 Comment=Shadowsocks desktop proxy client
 Exec=ssx-ng-linux
-Icon=shadowsocksx-ng-linux
+Icon=network-vpn-symbolic
 Terminal=false
 Categories=Network;Utility;
 StartupNotify=false
 EOF
 chmod 644 "$PKG/usr/share/applications/shadowsocksx-ng-linux.desktop"
 
-# Refresh GNOME's application and icon caches automatically after installing
-# or upgrading the package. These commands are optional on minimal systems.
 cat > "$PKG/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
