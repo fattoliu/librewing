@@ -1,10 +1,13 @@
 import base64
+import socket
 import subprocess
+import urllib.request
 
 import pytest
 
 from ssxng import pac
 from ssxng.config import AppConfig, ServerProfile
+from ssxng.runtime_ng import NgPacServer
 
 
 def test_parse_gfwlist_domains():
@@ -152,3 +155,22 @@ def test_rule_download_uses_configured_ipv6_socks_listener(monkeypatch):
 
     assert pac._download("https://example.com/rules", socks_host="::1", socks_port=1080) == b"rules"
     assert command[command.index("--socks5-hostname") + 1] == "[::1]:1080"
+
+
+@pytest.mark.parametrize("server_class", [pac.PacServer, NgPacServer])
+def test_pac_server_reports_health_and_restarts(server_class):
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    config = AppConfig(pac_port=port, gfwlist_enabled=False)
+    server = server_class(config)
+    try:
+        server.start()
+        assert server.running() is True
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/proxy.pac", timeout=2) as response:
+            assert response.headers["X-ShadowsocksX-NG-Linux"] == "PAC"
+        server.restart()
+        assert server.running() is True
+    finally:
+        server.stop()
+    assert server.running() is False

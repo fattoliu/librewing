@@ -30,6 +30,7 @@ from .runtime_ng import NgHttpProxyCore, NgPacServer, NgShadowsocksCore, NgSyste
 from .screen_qr import ScreenQrError, scan_screen_payloads
 from .server_json import example_json, export_servers, load_servers
 from .share import build_ss_url, parse_ss_url
+from .supervisor import RuntimeEvent, RuntimeSupervisor
 
 APP_ID = "io.github.fattoliu.shadowsocksxng"
 TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor"
@@ -219,10 +220,17 @@ class NgTrayApp:
         self.pac = NgPacServer(self.config)
         self.loop = GLib.MainLoop()
         self._runtime_shutdown = False
-        self._runtime_failure_reported = False
         self._menu_root = None
         self.pac.start()
         self.indicator = StatusNotifierItem(self)
+        self.supervisor = RuntimeSupervisor(
+            self.config,
+            self.core,
+            self.http,
+            self.pac,
+            fail_closed=self._fail_closed,
+            emit=self._runtime_event,
+        )
         self.rebuild_menu()
         if self.config.profile.server:
             try:
@@ -671,28 +679,30 @@ class NgTrayApp:
             self.alert(tr("Help text"))
 
     def monitor_runtime(self) -> bool:
-        """Fail closed when ss-local exits while a proxy mode is active."""
-        if self._runtime_shutdown or self.config.mode == "off":
+        if self._runtime_shutdown:
             return True
-        if self.core.running():
-            self._runtime_failure_reported = False
-            return True
-        if self._runtime_failure_reported:
-            return True
-        self._runtime_failure_reported = True
+        self.supervisor.tick()
+        return True
+
+    def _fail_closed(self) -> None:
         try:
             self.proxy._gsettings("org.gnome.system.proxy", "mode", "'none'")
         except Exception:
             pass
-        try:
-            self.http.stop()
-        except Exception:
-            pass
+
+    def _runtime_event(self, event: RuntimeEvent) -> None:
         self.rebuild_menu()
-        self.alert(
-            tr("Proxy core stopped unexpectedly. System proxy was disabled to keep networking available.")
-        )
-        return True
+        if event.state == "failed" and event.component == "core":
+            message = tr(
+                "Proxy core stopped unexpectedly. System proxy was disabled to keep networking available."
+            )
+        elif event.state == "failed":
+            message = f"{event.component.upper()} service failed: {event.detail}"
+        elif event.state == "restarted":
+            message = f"{event.component.upper()} service was restarted automatically."
+        else:
+            message = f"{event.component.upper()} service recovered."
+        self.alert(message)
 
     def shutdown_runtime(self, *, quit_main: bool = True) -> None:
         if not self._runtime_shutdown:

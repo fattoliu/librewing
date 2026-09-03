@@ -358,3 +358,10 @@ class PacServer:
         self.httpd.server_close()
         self.httpd = None
         self.thread = None
+
+    def restart(self) -> None:
+        self.stop()
+        self.start()
+
+    def running(self) -> bool:
+        return bool(self.httpd and self.thread and self.thread.is_alive())
