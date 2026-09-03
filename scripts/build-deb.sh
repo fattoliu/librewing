@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION:-0.2.0}"
 ARCH="${ARCH:-amd64}"
-UBUNTU_SERIES="${UBUNTU_SERIES:-resolute}"
+UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
+UBUNTU_SERIES="${UBUNTU_SERIES:-noble}"
 BUNDLE_SIMPLE_OBFS="${BUNDLE_SIMPLE_OBFS:-1}"
 PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
@@ -29,12 +30,15 @@ bundle_simple_obfs() {
   [ "$BUNDLE_SIMPLE_OBFS" = "1" ] || return 0
 
   local target="$APP_BIN/obfs-local"
-  local system_obfs=""
-  system_obfs="$(command -v obfs-local 2>/dev/null || true)"
+  local supplied_obfs="${SIMPLE_OBFS_BINARY:-}"
 
-  if [ -n "$system_obfs" ] && [ -x "$system_obfs" ]; then
-    echo "Bundling simple-obfs from $system_obfs" >&2
-    cp "$system_obfs" "$target"
+  if [ -n "$supplied_obfs" ]; then
+    if [ ! -x "$supplied_obfs" ]; then
+      echo "SIMPLE_OBFS_BINARY is not an executable file: $supplied_obfs" >&2
+      exit 1
+    fi
+    echo "Bundling explicitly supplied simple-obfs binary: $supplied_obfs" >&2
+    cp "$supplied_obfs" "$target"
     chmod 755 "$target"
     return 0
   fi
@@ -54,11 +58,23 @@ bundle_simple_obfs() {
   fi
 
   local version="0.0.5-1"
-  local release="ubuntu.26.04~${UBUNTU_SERIES}"
+  local release="ubuntu.${UBUNTU_VERSION}~${UBUNTU_SERIES}"
   local filename="shadowsocks-simple-obfs_${version}~${release}_${ARCH}.deb"
   local base="https://dl.lamp.sh/shadowsocks/ubuntu/pool/main/s/shadowsocks-simple-obfs"
   local url="${SIMPLE_OBFS_DEB_URL:-$base/$filename}"
+  local expected_sha256="${SIMPLE_OBFS_DEB_SHA256:-}"
   local tmp
+
+  if [ -z "$expected_sha256" ]; then
+    if [ -n "${SIMPLE_OBFS_DEB_URL:-}" ]; then
+      echo "SIMPLE_OBFS_DEB_SHA256 is required with a custom SIMPLE_OBFS_DEB_URL." >&2
+      exit 1
+    fi
+    case "$ARCH" in
+      amd64) expected_sha256="8a8c7decd284fab9a3f9d8ececec69e72c78987f5994b980bba5a15b3f7457f3" ;;
+      arm64) expected_sha256="568702496c713ba0cd971c6575bf454354fea34f0f3b7f5682effa4af32ea9c0" ;;
+    esac
+  fi
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
 
@@ -67,6 +83,10 @@ bundle_simple_obfs() {
       -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
     curl --noproxy '*' --fail --location --silent --show-error --retry 2 --connect-timeout 15 \
       --output "$tmp/simple-obfs.deb" "$url"
+  echo "$expected_sha256  $tmp/simple-obfs.deb" | sha256sum --check --status || {
+    echo "Downloaded simple-obfs package failed SHA-256 verification." >&2
+    exit 1
+  }
   dpkg-deb -x "$tmp/simple-obfs.deb" "$tmp/root"
 
   if [ ! -x "$tmp/root/usr/bin/obfs-local" ]; then
@@ -184,7 +204,7 @@ Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu
-Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, qrencode, zbar-tools, curl
+Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-handy-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, libcap2-bin, libcork16, libev4, qrencode, zbar-tools, curl
 Recommends: shadowsocks-v2ray-plugin
 Description: Shadowsocks desktop client for Linux/Ubuntu
  Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, bundled simple-obfs client support, SIP003 plugins and GNOME proxy integration. Modern settings windows use GTK4/libadwaita in isolated helper processes while the tray remains compatible with AppIndicator/GTK3.

@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 gir1.2-adw-1 \
+            gir1.2-handy-1 \
             gir1.2-ayatanaappindicator3-0.1 shadowsocks-libev \
             libayatana-appindicator3-1 qrencode zbar-tools
       - name: Import GTK application and CLI modules
@@ -67,3 +68,12 @@ jobs:
           dpkg-deb --contents "$DEB" | grep -q '/usr/lib/shadowsocksx-ng-linux/bin/obfs-local$'
           dpkg-deb --contents "$DEB" | grep -q '/usr/share/applications/shadowsocksx-ng-linux.desktop$'
           dpkg-deb --field "$DEB" Depends | grep -q 'shadowsocks-libev'
+          dpkg-deb --field "$DEB" Depends | grep -q 'gir1.2-handy-1'
+      - name: Install and execute packaged runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ./dist/*.deb
+          /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'import ssxng.app, ssxng.app_beta, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.server_manager4, ssxng.cli; print("installed desktop imports OK")'
+          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
