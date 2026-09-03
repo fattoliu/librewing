@@ -15,6 +15,9 @@ and releases use Semantic Versioning.
 - Disposable-session integration coverage for the real GNOME proxy schema.
 - Virtual-display smoke coverage that constructs every GTK4 application window.
 - Ubuntu 26.04 and Python 3.14 package compatibility coverage.
+- Deterministic SPDX 2.3 SBOMs for every Debian release artifact.
+- Sigstore-backed SLSA provenance and signed SBOM attestations for tagged
+  public releases.
 
 ### Changed
 

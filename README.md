@@ -208,6 +208,12 @@ of the same revision byte-for-byte reproducible. When building from a source
 archive without Git metadata, set `SOURCE_DATE_EPOCH` to the archive's revision
 timestamp explicitly.
 
+Release assets include a deterministic SPDX 2.3 software bill of materials for
+each architecture. The SBOM lists every installed file with its SHA-256 digest
+and binds the document to the corresponding Debian package checksum.
+Tagged public releases also receive GitHub/Sigstore SLSA build-provenance and
+SBOM attestations, verifiable with `gh attestation verify`.
+
 ## MVP release checklist
 
 Before tagging a release, verify:

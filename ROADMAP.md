@@ -23,7 +23,7 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 ## 1.0 readiness
 
 - [x] Define and test configuration migration guarantees.
-- [ ] Add reproducible release provenance and a software bill of materials.
+- [x] Add deterministic SPDX SBOMs and signed public-release provenance.
 - [ ] Complete accessibility and Simplified Chinese/Traditional Chinese review.
 - [ ] Document support boundaries for non-GNOME desktops.
 - [ ] Maintain a release candidate without critical defects before 1.0.
