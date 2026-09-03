@@ -18,11 +18,11 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 - [x] Replace runtime monkey-patching with an explicit application controller.
 - [x] Replace GTK3/AppIndicator with StatusNotifierItem and GTK4/libadwaita.
 - [ ] Add process supervision and structured runtime state/events.
-- [ ] Add automated GNOME proxy integration tests under a disposable session.
+- [x] Add automated GNOME proxy integration tests under a disposable session.
 
 ## 1.0 readiness
 
-- [ ] Define and test configuration migration guarantees.
+- [x] Define and test configuration migration guarantees.
 - [ ] Add reproducible release provenance and a software bill of materials.
 - [ ] Complete accessibility and Simplified Chinese/Traditional Chinese review.
 - [ ] Document support boundaries for non-GNOME desktops.

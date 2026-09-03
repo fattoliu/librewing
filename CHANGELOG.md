@@ -12,11 +12,14 @@ and releases use Semantic Versioning.
 - Open-source contribution, security, conduct, architecture, and release docs.
 - AppStream metadata, manual pages, and Debian policy validation for release
   packages.
+- Disposable-session integration coverage for the real GNOME proxy schema.
 
 ### Changed
 
 - The desktop stack is GTK4/libadwaita-only; the tray now uses the standard
   StatusNotifierItem and DBusMenu protocols instead of GTK3/AppIndicator.
+- Configuration files now carry a schema version; legacy files migrate safely,
+  and files created by newer releases are never overwritten.
 - Debian builds use the Ubuntu 24.04 runtime baseline for wider compatibility.
 - CI installs and executes the generated Debian package.
 - Health checks identify this application's listeners instead of accepting any
@@ -30,6 +33,8 @@ and releases use Semantic Versioning.
 
 - Configuration, runtime, log, backup, and server-export files now use
   owner-only permissions.
+- Exporting credentials no longer changes permissions on the selected parent
+  directory.
 - Instance locks and exported profile QR images now use owner-only permissions.
 - Bundled simple-obfs packages are verified against pinned SHA-256 checksums.
 - The system proxy fails closed if the managed `ss-local` process exits.

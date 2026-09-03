@@ -31,6 +31,15 @@ State lives in `~/.config/shadowsocksx-ng-linux`. The directory is mode `0700`;
 files containing credentials or operational details are mode `0600` and are
 replaced atomically.
 
+`config.json` carries an explicit schema version. Unversioned pre-0.3 files are
+migrated in place after a successful parse, while a configuration written by a
+newer application version is left byte-for-byte untouched and startup stops
+with a clear compatibility error. Corrupt or invalid legacy files are retained
+as `config.invalid-*.json` before safe defaults are created.
+
+User-selected backup and server-export destinations receive owner-only files,
+but their parent directories are never chmodded by the application.
+
 The stored selected mode is intentionally preserved during normal shutdown,
 while the active GNOME system proxy is disabled. This lets the next launch
 restore the user's chosen mode without leaving networking dependent on a
