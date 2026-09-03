@@ -36,7 +36,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
-            gir1.2-dbusmenu-glib-0.4 shadowsocks-libev qrencode zbar-tools
+            gir1.2-dbusmenu-glib-0.4 libglib2.0-bin gsettings-desktop-schemas \
+            shadowsocks-libev qrencode zbar-tools
       - name: Import GTK4 application and CLI modules
         run: |
           /usr/bin/python3 -m compileall -q ssxng
@@ -48,6 +49,8 @@ jobs:
           command -v gsettings
           command -v qrencode
           command -v zbarimg
+      - name: Exercise GNOME proxy settings in a disposable session
+        run: dbus-run-session -- env PYTHONPATH=. /usr/bin/python3 scripts/smoke-gnome-proxy.py
 
   package-smoke:
     name: Debian package smoke

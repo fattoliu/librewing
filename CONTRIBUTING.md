@@ -22,7 +22,8 @@ The desktop UI requires Ubuntu/Debian system packages:
 sudo apt update
 sudo apt install -y \
   python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
-  gir1.2-dbusmenu-glib-0.4 shadowsocks-libev qrencode zbar-tools curl
+  gir1.2-dbusmenu-glib-0.4 libglib2.0-bin gsettings-desktop-schemas \
+  shadowsocks-libev qrencode zbar-tools curl
 python3 -m pip install -e '.[dev]'
 ```
 
@@ -33,6 +34,13 @@ python3 -m compileall -q ssxng
 pytest -q --cov=ssxng --cov-branch --cov-report=term-missing
 ruff check ssxng tests
 bash -n scripts/*.sh
+```
+
+On Ubuntu, also exercise the actual GNOME proxy schema without touching your
+desktop settings:
+
+```bash
+dbus-run-session -- env PYTHONPATH=. python3 scripts/smoke-gnome-proxy.py
 ```
 
 Desktop and packaging changes should also be exercised on a clean supported
