@@ -42,8 +42,11 @@ omit = [
   "ssxng/app_beta.py",
   "ssxng/app_ng_features.py",
   "ssxng/advanced_settings.py",
+  "ssxng/feedback_ui4.py",
+  "ssxng/modern_ui4.py",
   "ssxng/preferences_ng.py",
   "ssxng/server_manager.py",
+  "ssxng/server_manager4.py",
   "ssxng/share_dialog.py",
   "ssxng/ui.py",
   "ssxng/runtime_ng.py",
@@ -77,6 +80,9 @@ ignore = ["E501", "I001", "B904", "UP037"]
 # PyGObject requires gi.require_version() before importing gi.repository, which
 # necessarily puts the following project imports after executable statements.
 "ssxng/app.py" = ["E402"]
+"ssxng/feedback_ui4.py" = ["E402"]
+"ssxng/modern_ui4.py" = ["E402"]
 "ssxng/preferences_ng.py" = ["E402"]
 "ssxng/server_manager.py" = ["E402"]
+"ssxng/server_manager4.py" = ["E402"]
 "ssxng/ui.py" = ["E402"]

@@ -1,14 +1,13 @@
 from pathlib import Path
 
 
-def test_dialog_action_area_has_consistent_edge_spacing_and_rounding():
+def test_dialog_action_area_has_consistent_spacing_and_native_window_rounding():
     ui = Path("ssxng/ui.py").read_text(encoding="utf-8")
     assert ".dialog-action-area" in ui
     assert "padding: 10px 18px 16px 18px" in ui
     assert "min-width: 88px" in ui
-    assert "border-bottom-left-radius: 12px" in ui
-    assert "border-bottom-right-radius: 12px" in ui
-    assert "window.dialog decoration" in ui
+    assert "class HandyDialog(Handy.Window)" in ui
+    assert "fake transparent/ARGB window tricks" in ui
 
 
 def test_custom_dialogs_use_common_polish_helper():
