@@ -1,4 +1,5 @@
 import base64
+import subprocess
 
 import pytest
 
@@ -135,3 +136,19 @@ def test_rule_download_rejects_oversized_response(monkeypatch):
 
     with pytest.raises(ValueError, match="too large"):
         pac._download("https://example.com/rules")
+
+
+def test_rule_download_uses_configured_ipv6_socks_listener(monkeypatch):
+    command = []
+
+    monkeypatch.setattr(pac.shutil, "which", lambda _name: "/usr/bin/curl")
+    monkeypatch.setattr(pac, "_local_proxy_available", lambda host, port: (host, port) == ("::1", 1080))
+
+    def run(args, **_kwargs):
+        command.extend(args)
+        return subprocess.CompletedProcess(args, 0, stdout=b"rules")
+
+    monkeypatch.setattr(pac.subprocess, "run", run)
+
+    assert pac._download("https://example.com/rules", socks_host="::1", socks_port=1080) == b"rules"
+    assert command[command.index("--socks5-hostname") + 1] == "[::1]:1080"

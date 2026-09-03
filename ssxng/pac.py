@@ -27,15 +27,26 @@ def _require_https_url(url: str, label: str) -> str:
     return parsed.geturl()
 
 
-def _local_proxy_available(port: int) -> bool:
+def _format_host_port(host: str, port: int) -> str:
+    if ":" in host:
+        host = f"[{host.strip('[]')}]"
+    return f"{host}:{int(port)}"
+
+
+def _local_proxy_available(host: str, port: int) -> bool:
     try:
-        with socket.create_connection(("127.0.0.1", int(port)), timeout=0.3):
+        with socket.create_connection((host, int(port)), timeout=0.3):
             return True
     except OSError:
         return False
 
 
-def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> bytes:
+def _download(
+    url: str,
+    timeout: int = 20,
+    socks_host: str = "127.0.0.1",
+    socks_port: int | None = None,
+) -> bytes:
     """Download rule assets with a resilient proxy/direct fallback path.
 
     Prefer the active local SOCKS tunnel, but a listening port does not
@@ -45,7 +56,7 @@ def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> byt
     """
     curl = shutil.which("curl")
     socks_error: Exception | None = None
-    if socks_port and curl and _local_proxy_available(socks_port):
+    if socks_port and curl and _local_proxy_available(socks_host, socks_port):
         try:
             completed = subprocess.run(
                 [
@@ -65,7 +76,7 @@ def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> byt
                     "--retry-delay",
                     "1",
                     "--socks5-hostname",
-                    f"127.0.0.1:{int(socks_port)}",
+                    _format_host_port(socks_host, socks_port),
                     url,
                 ],
                 check=True,
@@ -167,17 +178,23 @@ def merged_abp_rules(config: AppConfig) -> list[str]:
 
 
 def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
+    socks_host = connect_host(config.socks_listen_address)
     socks_port = config.profile.local_port
     gfwlist_url = _require_https_url(config.gfwlist_url, "GFWList URL")
     template_url = _require_https_url(config.abp_template_url, "ABP template URL")
-    raw = _download(gfwlist_url, timeout=timeout, socks_port=socks_port)
+    raw = _download(gfwlist_url, timeout=timeout, socks_host=socks_host, socks_port=socks_port)
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
     # Keep caching the upstream ShadowsocksX-NG template for compatibility and
     # future precise-rule work, although Linux serves a compact PAC at runtime.
-    template = _download(template_url, timeout=timeout, socks_port=socks_port)
+    template = _download(
+        template_url,
+        timeout=timeout,
+        socks_host=socks_host,
+        socks_port=socks_port,
+    )
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
         raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
@@ -234,9 +251,7 @@ def _domain_sets(config: AppConfig) -> tuple[set[str], set[str]]:
 
 def _socks5(config: AppConfig) -> str:
     host = connect_host(config.socks_listen_address)
-    if ":" in host:
-        host = f"[{host.strip('[]')}]"
-    return f"SOCKS5 {host}:{config.profile.local_port}"
+    return f"SOCKS5 {_format_host_port(host, config.profile.local_port)}"
 
 
 def build_global_pac(config: AppConfig) -> str:
