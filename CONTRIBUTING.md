@@ -21,9 +21,8 @@ The desktop UI requires Ubuntu/Debian system packages:
 ```bash
 sudo apt update
 sudo apt install -y \
-  python3 python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 \
-  gir1.2-adw-1 gir1.2-handy-1 gir1.2-ayatanaappindicator3-0.1 \
-  libayatana-appindicator3-1 shadowsocks-libev qrencode zbar-tools curl
+  python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+  gir1.2-dbusmenu-glib-0.4 shadowsocks-libev qrencode zbar-tools curl
 python3 -m pip install -e '.[dev]'
 ```
 
@@ -50,4 +49,3 @@ Ubuntu VM or container. See [docs/releasing.md](docs/releasing.md).
 - Use bullet points in commit bodies when a body is needed.
 
 All contributions are accepted under GPL-3.0-or-later.
-

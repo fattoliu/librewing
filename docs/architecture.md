@@ -18,11 +18,12 @@ LAN opt-in because they do not authenticate clients.
 
 ## User interface
 
-Ayatana AppIndicator requires GTK3 in the tray process. Modern dialogs use
-GTK4/libadwaita in isolated helper processes, avoiding GTK3 and GTK4 in the
-same process. `BetaTrayApp` and `NgTrayApp` form an explicit compatibility
-inheritance chain over the original tray class; runtime services are selected
-through class-level dependency injection rather than global monkey-patching.
+The tray is exported directly through the freedesktop StatusNotifierItem and
+DBusMenu protocols using Gio and libdbusmenu. This keeps the familiar Ubuntu
+panel workflow without AppIndicator or GTK3. `NgTrayApp` is the explicit
+application controller; its windows run as GTK4/libadwaita helpers so a modal
+dialog has an isolated toolkit/application lifecycle. Long-running proxy
+services remain separate from the UI helpers.
 
 ## Persistent state
 

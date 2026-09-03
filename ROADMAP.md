@@ -16,7 +16,7 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 ## 0.3 architecture
 
 - [x] Replace runtime monkey-patching with an explicit application controller.
-- [ ] Consolidate legacy GTK3 dialogs into GTK4/libadwaita helpers.
+- [x] Replace GTK3/AppIndicator with StatusNotifierItem and GTK4/libadwaita.
 - [ ] Add process supervision and structured runtime state/events.
 - [ ] Add automated GNOME proxy integration tests under a disposable session.
 

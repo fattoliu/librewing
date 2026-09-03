@@ -14,7 +14,7 @@ The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plu
 
 ## Current feature set
 
-- Ayatana AppIndicator tray UI with upstream ShadowsocksX-NG paper-plane status icons
+- StatusNotifierItem/DBusMenu tray UI with upstream ShadowsocksX-NG paper-plane status icons
 - PAC / Global / Manual / External PAC modes
 - Automatic mode indicator (`P`, `G`, `M`) in the status bar
 - Multiple Shadowsocks server profiles and profile switching
@@ -199,6 +199,11 @@ extracts only the client runtime. Builds never silently reuse a binary from
 `PATH`. Set `SIMPLE_OBFS_BINARY=/absolute/path/to/obfs-local` for an explicit
 development override, or `BUNDLE_SIMPLE_OBFS=0` for a build that intentionally
 omits it. Official releases must use the pinned artifacts.
+
+The build timestamp defaults to the current Git commit, making repeated builds
+of the same revision byte-for-byte reproducible. When building from a source
+archive without Git metadata, set `SOURCE_DATE_EPOCH` to the archive's revision
+timestamp explicitly.
 
 ## MVP release checklist
 
