@@ -16,6 +16,8 @@ def test_clear_log(tmp_path):
     path.write_text("hello", encoding="utf-8")
     clear_log(path)
     assert path.read_text(encoding="utf-8") == ""
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_proxy_log_is_private(tmp_path, monkeypatch):

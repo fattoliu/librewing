@@ -14,6 +14,7 @@ from gi.repository import Adw, Gtk  # noqa: E402
 from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig, LOG_FILE
 from .i18n import system_language, tr
+from .logs import clear_log
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
 PAGE_PAD = 24
@@ -484,7 +485,7 @@ class LogsApp(Adw.Application):
 
     def _clear(self, *_args) -> None:
         try:
-            LOG_FILE.write_text("", encoding="utf-8")
+            clear_log()
         except Exception:
             pass
         self._refresh()

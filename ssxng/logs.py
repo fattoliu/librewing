@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from pathlib import Path
 
-from .config import LOG_FILE
+from .config import LOG_FILE, write_private_text
 
 
 def tail_log(lines: int = 200, path: Path | None = None) -> str:
@@ -19,5 +19,4 @@ def tail_log(lines: int = 200, path: Path | None = None) -> str:
 
 def clear_log(path: Path | None = None) -> None:
     target = path or LOG_FILE
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("", encoding="utf-8")
+    write_private_text(target, "")
