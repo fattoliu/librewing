@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import stat
+from pathlib import Path
+
 import pytest
 
 from ssxng import qr
@@ -10,6 +13,26 @@ def test_export_profile_qr_requires_qrencode(monkeypatch, tmp_path):
     monkeypatch.setattr(qr.shutil, "which", lambda _name: None)
     with pytest.raises(RuntimeError, match="qrencode"):
         qr.export_profile_qr(ServerProfile(server="example.com", password="x"), tmp_path / "server.png")
+
+
+def test_export_profile_qr_is_private_and_atomic(monkeypatch, tmp_path):
+    monkeypatch.setattr(qr.shutil, "which", lambda _name: "/usr/bin/qrencode")
+
+    class Result:
+        returncode = 0
+        stderr = ""
+
+    def run(args, **_kwargs):
+        Path(args[args.index("-o") + 1]).write_bytes(b"png")
+        return Result()
+
+    monkeypatch.setattr(qr.subprocess, "run", run)
+    output = tmp_path / "server.png"
+
+    assert qr.export_profile_qr(ServerProfile(server="example.com", password="x"), output) == output
+    assert output.read_bytes() == b"png"
+    assert stat.S_IMODE(output.stat().st_mode) == 0o600
+    assert not list(tmp_path.glob(".server.png.*.tmp"))
 
 
 def test_scan_profile_qr_requires_zbarimg(monkeypatch, tmp_path):

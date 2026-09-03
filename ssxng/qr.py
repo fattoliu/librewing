@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from .share import build_ss_url, parse_ss_url
@@ -20,16 +22,29 @@ def export_profile_qr(profile: ServerProfile, output: Path) -> Path:
     executable = _require("qrencode")
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        [executable, "-o", str(output), "-s", "8", "-m", "2", build_ss_url(profile)],
-        text=True,
-        capture_output=True,
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{output.name}.",
+        suffix=".tmp",
+        dir=output.parent,
     )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "qrencode failed")
-    if not output.exists():
-        raise RuntimeError("qrencode did not create the output file")
-    return output
+    temporary = Path(temporary_name)
+    os.close(descriptor)
+    try:
+        result = subprocess.run(
+            [executable, "-o", str(temporary), "-s", "8", "-m", "2", build_ss_url(profile)],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "qrencode failed")
+        if not temporary.exists():
+            raise RuntimeError("qrencode did not create the output file")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, output)
+        os.chmod(output, 0o600)
+        return output
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def scan_profile_qr(image: Path) -> ServerProfile:
