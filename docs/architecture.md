@@ -13,6 +13,11 @@ The tray process coordinates four services:
 3. `NgPacServer` serves PAC responses generated from GFWList and user rules.
 4. `NgSystemProxy` applies GNOME proxy settings through `gsettings`.
 
+`RuntimeSupervisor` produces immutable service snapshots and transition events.
+It automatically restarts PAC and HTTP services, reports recovery without alert
+loops, and disables the GNOME system proxy if `ss-local` or a required PAC
+service remains unavailable.
+
 All listeners default to loopback. SOCKS5 and HTTP listeners require explicit
 LAN opt-in because they do not authenticate clients.
 

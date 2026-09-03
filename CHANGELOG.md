@@ -40,6 +40,8 @@ and releases use Semantic Versioning.
 - Instance locks and exported profile QR images now use owner-only permissions.
 - Bundled simple-obfs packages are verified against pinned SHA-256 checksums.
 - The system proxy fails closed if the managed `ss-local` process exits.
+- Structured runtime supervision restarts PAC/HTTP services and reports
+  failure/recovery transitions without repeated alerts.
 
 ## [0.2.0] - 2026-08-26
 
