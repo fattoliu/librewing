@@ -1,6 +1,8 @@
 import json
 import stat
 
+import pytest
+
 from ssxng import config
 
 
@@ -30,6 +32,16 @@ def test_save_replaces_config_atomically(tmp_path, monkeypatch):
     assert not (tmp_path / "config.json.tmp").exists()
 
 
+def test_generic_private_write_does_not_chmod_existing_parent(tmp_path):
+    parent = tmp_path / "shared"
+    parent.mkdir(mode=0o755)
+
+    config.write_private_text(parent / "secret.txt", "secret")
+
+    assert stat.S_IMODE(parent.stat().st_mode) == 0o755
+    assert stat.S_IMODE((parent / "secret.txt").stat().st_mode) == 0o600
+
+
 def test_load_ignores_unknown_fields(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "APP_DIR", tmp_path)
     monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
@@ -55,7 +67,72 @@ def test_load_migrates_legacy_privoxy_port_to_1087(tmp_path, monkeypatch):
     loaded = config.AppConfig.load()
 
     assert loaded.http_port == 1087
-    assert json.loads(config.CONFIG_FILE.read_text(encoding="utf-8"))["http_port"] == 1087
+    saved = json.loads(config.CONFIG_FILE.read_text(encoding="utf-8"))
+    assert saved["http_port"] == 1087
+    assert saved["config_version"] == config.CURRENT_CONFIG_VERSION
+
+
+def test_load_versions_legacy_configuration(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    config.CONFIG_FILE.write_text(
+        json.dumps({"mode": "manual", "profiles": [{"name": "Legacy"}]}),
+        encoding="utf-8",
+    )
+
+    loaded = config.AppConfig.load()
+
+    assert loaded.config_version == config.CURRENT_CONFIG_VERSION
+    saved = json.loads(config.CONFIG_FILE.read_text(encoding="utf-8"))
+    assert saved["config_version"] == config.CURRENT_CONFIG_VERSION
+    assert saved["profiles"][0]["name"] == "Legacy"
+
+
+def test_newer_configuration_is_never_overwritten(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    original = json.dumps(
+        {"config_version": config.CURRENT_CONFIG_VERSION + 1, "future": "keep-me"}
+    )
+    config.CONFIG_FILE.write_text(original, encoding="utf-8")
+
+    with pytest.raises(config.UnsupportedConfigVersion, match="requires a newer"):
+        config.AppConfig.load()
+
+    assert config.CONFIG_FILE.read_text(encoding="utf-8") == original
+
+
+def test_invalid_known_configuration_is_backed_up_and_reset(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    config.CONFIG_FILE.write_text(
+        json.dumps({"config_version": 1, "mode": "surprise"}), encoding="utf-8"
+    )
+
+    loaded = config.AppConfig.load()
+
+    assert loaded.mode == "off"
+    assert len(list(tmp_path.glob("config.invalid-*.json"))) == 1
+
+
+def test_save_rejects_conflicting_listener_ports(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    cfg = config.AppConfig(http_port=1080)
+
+    with pytest.raises(ValueError, match="must be different"):
+        cfg.save()
+
+    assert not config.CONFIG_FILE.exists()
+
+
+def test_server_profile_normalizes_json_port_strings():
+    profile = config.ServerProfile.from_dict(
+        {"server": "example.com", "server_port": "443", "local_port": "1081"}
+    )
+
+    assert profile.server_port == 443
+    assert profile.local_port == 1081
 
 
 def test_http_proxy_default_port_matches_ng_convention():

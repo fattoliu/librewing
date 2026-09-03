@@ -19,4 +19,4 @@ def tail_log(lines: int = 200, path: Path | None = None) -> str:
 
 def clear_log(path: Path | None = None) -> None:
     target = path or LOG_FILE
-    write_private_text(target, "")
+    write_private_text(target, "", private_parent=True)

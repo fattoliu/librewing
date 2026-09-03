@@ -58,6 +58,10 @@ def load_backup(path: Path) -> AppConfig:
         raise BackupError("Backup must contain at least one valid server profile")
     cfg.profiles = profiles
     cfg.active_profile = min(max(int(cfg.active_profile), 0), len(profiles) - 1)
+    try:
+        cfg.validate()
+    except ValueError as exc:
+        raise BackupError(f"Invalid backup configuration: {exc}") from exc
     return cfg
 
 

@@ -31,6 +31,15 @@ def test_backup_file_is_private(tmp_path):
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+def test_export_does_not_change_existing_parent_permissions(tmp_path):
+    export_dir = tmp_path / "shared"
+    export_dir.mkdir(mode=0o755)
+
+    export_backup(AppConfig(), export_dir / "backup.json")
+
+    assert stat.S_IMODE(export_dir.stat().st_mode) == 0o755
+
+
 def test_rejects_unknown_backup_format(tmp_path):
     path = tmp_path / "bad.json"
     path.write_text(json.dumps({"format": "other", "version": 1, "config": {}}), encoding="utf-8")
@@ -45,4 +54,21 @@ def test_rejects_empty_profiles(tmp_path):
         encoding="utf-8",
     )
     with pytest.raises(BackupError, match="at least one server profile"):
+        load_backup(path)
+
+
+def test_rejects_invalid_backup_preferences(tmp_path):
+    path = tmp_path / "bad.json"
+    path.write_text(
+        json.dumps(
+            {
+                "format": "shadowsocksx-ng-linux-backup",
+                "version": 1,
+                "config": {"mode": "unknown", "profiles": [{"name": "A"}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BackupError, match="unsupported proxy mode"):
         load_backup(path)
