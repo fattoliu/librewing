@@ -11,6 +11,11 @@ permissions:
 
 jobs:
   deb:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     strategy:
       matrix:
         include:
@@ -21,7 +26,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Build deb
+      - name: Build deb and SBOM
+        id: artifacts
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
@@ -30,14 +36,30 @@ jobs:
           fi
           VERSION="$VERSION" ARCH="${{ matrix.arch }}" bash scripts/build-deb.sh
           DEB=$(ls dist/*.deb)
-          DEB_NAME=$(basename "$DEB")
-          (cd dist && sha256sum "$DEB_NAME" > "$DEB_NAME.sha256")
+          SOURCE_EPOCH=$(git show -s --format=%ct HEAD)
+          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
+          (cd dist && for artifact in *.deb *.spdx.json; do sha256sum "$artifact" > "$artifact.sha256"; done)
+          echo "deb=$DEB" >> "$GITHUB_OUTPUT"
+          echo "sbom=$(ls dist/*.spdx.json)" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/v') && github.event.repository.visibility == 'public'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.artifacts.outputs.deb }}
+      - name: Attest SBOM
+        if: startsWith(github.ref, 'refs/tags/v') && github.event.repository.visibility == 'public'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ steps.artifacts.outputs.deb }}
+          sbom-path: ${{ steps.artifacts.outputs.sbom }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: shadowsocksx-ng-linux-${{ matrix.arch }}
           path: |
             dist/*.deb
             dist/*.deb.sha256
+            dist/*.spdx.json
+            dist/*.spdx.json.sha256
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -56,6 +78,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/*.deb dist/*.deb.sha256 \
+            dist/*.spdx.json dist/*.spdx.json.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --title "ShadowsocksX-NG Linux $GITHUB_REF_NAME" \
             --generate-notes

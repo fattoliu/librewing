@@ -66,9 +66,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y appstream desktop-file-utils
           bash scripts/build-deb.sh
+          DEB=$(ls dist/*.deb)
+          SOURCE_EPOCH=$(git show -s --format=%ct HEAD)
+          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
           cp dist/*.deb /tmp/first-build.deb
+          cp dist/*.spdx.json /tmp/first-build.spdx.json
           bash scripts/build-deb.sh
+          DEB=$(ls dist/*.deb)
+          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
           cmp /tmp/first-build.deb dist/*.deb
+          cmp /tmp/first-build.spdx.json dist/*.spdx.json
       - name: Inspect package metadata and payload
         run: |
           DEB=$(ls dist/*.deb)
@@ -83,6 +90,7 @@ jobs:
           ! dpkg-deb --contents "$DEB" | grep -q '__pycache__'
           dpkg-deb --field "$DEB" Depends | grep -q 'shadowsocks-libev'
           dpkg-deb --field "$DEB" Depends | grep -q 'gir1.2-dbusmenu-glib-0.4'
+          python3 -c 'import glob,json; data=json.load(open(glob.glob("dist/*.spdx.json")[0])); assert data["spdxVersion"] == "SPDX-2.3" and data["packages"][0]["filesAnalyzed"]'
           EXTRACTED=$(mktemp -d)
           dpkg-deb --extract "$DEB" "$EXTRACTED"
           desktop-file-validate "$EXTRACTED/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop"
