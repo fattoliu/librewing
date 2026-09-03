@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .config import ABP_TEMPLATE_FILE, AppConfig, GFWLIST_FILE
+from .core import connect_host
 
 DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
 MAX_RULE_DOWNLOAD_BYTES = 16 * 1024 * 1024
@@ -232,7 +233,10 @@ def _domain_sets(config: AppConfig) -> tuple[set[str], set[str]]:
 
 
 def _socks5(config: AppConfig) -> str:
-    return f"SOCKS5 127.0.0.1:{config.profile.local_port}"
+    host = connect_host(config.socks_listen_address)
+    if ":" in host:
+        host = f"[{host.strip('[]')}]"
+    return f"SOCKS5 {host}:{config.profile.local_port}"
 
 
 def build_global_pac(config: AppConfig) -> str:

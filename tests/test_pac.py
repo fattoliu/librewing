@@ -37,6 +37,14 @@ def test_global_pac_proxies_everything_except_local_hosts():
     assert 'return "SOCKS5 127.0.0.1:1080; DIRECT";' in result
 
 
+def test_global_pac_uses_configured_listener():
+    config = AppConfig(socks_listen_address="192.0.2.10")
+    assert "SOCKS5 192.0.2.10:1080" in pac.build_global_pac(config)
+
+    config.socks_listen_address = "::"
+    assert "SOCKS5 [::1]:1080" in pac.build_global_pac(config)
+
+
 def test_abp_rules_preserve_complex_upstream_syntax(tmp_path, monkeypatch):
     gfwlist = "\n".join(
         [
