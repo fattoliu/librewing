@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import TextIO
 
-from .config import APP_DIR
+from .config import APP_DIR, ensure_private_directory
 
 LOCK_FILE = APP_DIR / "app.lock"
 
@@ -22,8 +22,10 @@ class InstanceLock:
         self.handle: TextIO | None = None
 
     def acquire(self) -> "InstanceLock":
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+", encoding="utf-8")
+        ensure_private_directory(self.path.parent)
+        descriptor = os.open(self.path, os.O_APPEND | os.O_CREAT | os.O_RDWR, 0o600)
+        os.fchmod(descriptor, 0o600)
+        handle = os.fdopen(descriptor, "a+", encoding="utf-8")
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
