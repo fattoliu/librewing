@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 fattoliu and contributors
+  SPDX-License-Identifier: FSFAP
+-->
+<component type="desktop-application">
+  <id>io.github.fattoliu.shadowsocksxng.desktop</id>
+  <name>ShadowsocksX-NG Linux</name>
+  <summary>Tray-first Shadowsocks client for GNOME and Ubuntu</summary>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <launchable type="desktop-id">io.github.fattoliu.shadowsocksxng.desktop</launchable>
+  <developer id="io.github.fattoliu">
+    <name>fattoliu</name>
+  </developer>
+  <description>
+    <p>
+      ShadowsocksX-NG Linux manages local Shadowsocks, HTTP proxy, and PAC
+      services from a desktop tray interface. It supports server profiles,
+      GFWList rules, QR import and sharing, and SIP003 plugins.
+    </p>
+  </description>
+  <url type="homepage">https://github.com/fattoliu/shadowsocksx-ng-linux</url>
+  <url type="bugtracker">https://github.com/fattoliu/shadowsocksx-ng-linux/issues</url>
+  <provides>
+    <binary>ssx-ng-linux</binary>
+    <binary>ssx-ng-tool</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.2.0" date="2026-08-26" />
+  </releases>
+</component>

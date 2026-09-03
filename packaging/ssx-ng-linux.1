@@ -1,0 +1,25 @@
+.TH SSX-NG-LINUX 1 "August 2026" "ShadowsocksX-NG Linux 0.2.0" "User Commands"
+.SH NAME
+ssx-ng-linux \- start the ShadowsocksX-NG Linux desktop client
+.SH SYNOPSIS
+.B ssx-ng-linux
+.SH DESCRIPTION
+.B ssx-ng-linux
+starts a tray-first Shadowsocks desktop client for GNOME and Ubuntu.
+It manages a local ss-local process, optional HTTP and PAC services, server
+profiles, SIP003 plugins, and GNOME system proxy settings.
+.PP
+Only one application instance may run for each user. Configuration and runtime
+state are stored with owner-only permissions.
+.SH FILES
+.TP
+.I ~/.config/shadowsocksx-ng-linux/config.json
+Application settings and server profiles.
+.TP
+.I ~/.config/shadowsocksx-ng-linux/app.log
+Proxy runtime log.
+.SH SEE ALSO
+.BR ssx-ng-tool (1),
+.BR ss-local (1)
+.SH BUGS
+Report bugs at https://github.com/fattoliu/shadowsocksx-ng-linux/issues.

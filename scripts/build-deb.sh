@@ -7,12 +7,43 @@ ARCH="${ARCH:-amd64}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 UBUNTU_SERIES="${UBUNTU_SERIES:-noble}"
 BUNDLE_SIMPLE_OBFS="${BUNDLE_SIMPLE_OBFS:-1}"
+if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
+  if command -v git >/dev/null 2>&1 && SOURCE_DATE_EPOCH="$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null)"; then
+    :
+  else
+    echo "SOURCE_DATE_EPOCH is required when building outside a Git checkout." >&2
+    exit 1
+  fi
+fi
+
+if [[ ! "$VERSION" =~ ^[0-9][0-9A-Za-z.+:~_-]*$ ]]; then
+  echo "Invalid Debian package version: $VERSION" >&2
+  exit 1
+fi
+case "$ARCH" in
+  amd64|arm64) ;;
+  *)
+    echo "Unsupported package architecture: $ARCH" >&2
+    exit 1
+    ;;
+esac
+if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
+  echo "SOURCE_DATE_EPOCH must be an integer Unix timestamp." >&2
+  exit 1
+fi
+export SOURCE_DATE_EPOCH
+
 PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
 ICON_ASSETS="$ROOT/assets/upstream"
-ICON_OUT="$PKG/usr/share/icons/hicolor/44x44/status"
+ICON_OUT="$PKG/usr/share/icons/hicolor/36x36/status"
 APP_LIB="$PKG/usr/lib/shadowsocksx-ng-linux"
 APP_BIN="$APP_LIB/bin"
+
+cleanup() {
+  rm -rf "$PKG"
+}
+trap cleanup EXIT
 
 rm -rf "$PKG"
 mkdir -p \
@@ -21,10 +52,25 @@ mkdir -p \
   "$APP_LIB" \
   "$APP_BIN" \
   "$PKG/usr/share/applications" \
+  "$PKG/usr/share/man/man1" \
+  "$PKG/usr/share/metainfo" \
   "$PKG/usr/share/doc/shadowsocksx-ng-linux" \
   "$ICON_OUT"
 
 cp -R "$ROOT/ssxng" "$APP_LIB/"
+find "$APP_LIB/ssxng" -type d -name __pycache__ -prune -exec rm -rf -- {} +
+find "$APP_LIB/ssxng" -type f -name '*.pyc' -delete
+cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$ROOT/NOTICE" "$ROOT/LICENSE" \
+  "$PKG/usr/share/doc/shadowsocksx-ng-linux/"
+cp "$ROOT/packaging/copyright" "$PKG/usr/share/doc/shadowsocksx-ng-linux/copyright"
+cp "$ROOT/packaging/io.github.fattoliu.shadowsocksxng.metainfo.xml" "$PKG/usr/share/metainfo/"
+{
+  printf 'shadowsocksx-ng-linux (%s) noble; urgency=medium\n\n' "$VERSION"
+  printf '  * See /usr/share/doc/shadowsocksx-ng-linux/CHANGELOG.md for release details.\n\n'
+  printf ' -- fattoliu <724684054@qq.com>  %s\n' "$(date -u -d "@$SOURCE_DATE_EPOCH" -R)"
+} | gzip -9n > "$PKG/usr/share/doc/shadowsocksx-ng-linux/changelog.gz"
+gzip -9n -c "$ROOT/packaging/ssx-ng-linux.1" > "$PKG/usr/share/man/man1/ssx-ng-linux.1.gz"
+gzip -9n -c "$ROOT/packaging/ssx-ng-tool.1" > "$PKG/usr/share/man/man1/ssx-ng-tool.1.gz"
 
 bundle_simple_obfs() {
   [ "$BUNDLE_SIMPLE_OBFS" = "1" ] || return 0
@@ -154,7 +200,7 @@ exec python3 -m ssxng.cli "$@"
 EOF
 chmod 755 "$PKG/usr/bin/ssx-ng-tool"
 
-cat > "$PKG/usr/share/applications/shadowsocksx-ng-linux.desktop" <<'EOF'
+cat > "$PKG/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=ShadowsocksX-NG Linux
@@ -162,10 +208,10 @@ Comment=Shadowsocks desktop proxy client
 Exec=ssx-ng-linux
 Icon=network-vpn-symbolic
 Terminal=false
-Categories=Network;Utility;
+Categories=Network;
 StartupNotify=false
 EOF
-chmod 644 "$PKG/usr/share/applications/shadowsocksx-ng-linux.desktop"
+chmod 644 "$PKG/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop"
 
 cat > "$PKG/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
@@ -203,12 +249,16 @@ Version: $VERSION
 Section: net
 Priority: optional
 Architecture: $ARCH
-Maintainer: fattoliu
-Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-handy-1, gir1.2-ayatanaappindicator3-0.1, shadowsocks-libev, libayatana-appindicator3-1, libcap2-bin, libcork16, libev4, qrencode, zbar-tools, curl
-Recommends: shadowsocks-v2ray-plugin
+Maintainer: fattoliu <724684054@qq.com>
+Homepage: https://github.com/fattoliu/shadowsocksx-ng-linux
+Depends: libc6, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-dbusmenu-glib-0.4, libdbusmenu-glib4, shadowsocks-libev, libcap2-bin, libcork16, libev4, qrencode, zbar-tools, curl
+Recommends: gnome-shell-extension-appindicator, shadowsocks-v2ray-plugin
 Description: Shadowsocks desktop client for Linux/Ubuntu
- Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList, bundled simple-obfs client support, SIP003 plugins and GNOME proxy integration. Modern settings windows use GTK4/libadwaita in isolated helper processes while the tray remains compatible with AppIndicator/GTK3.
+ Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList,
+ bundled simple-obfs client support, SIP003 plugins and GNOME proxy integration.
+ The tray uses StatusNotifierItem/DBusMenu, and all windows use GTK4/libadwaita.
 EOF
 
+find "$PKG" -print0 | xargs -0 touch --no-dereference --date="@$SOURCE_DATE_EPOCH"
 dpkg-deb --build --root-owner-group "$PKG" "$OUT"
 echo "$OUT"
