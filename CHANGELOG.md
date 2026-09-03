@@ -13,6 +13,8 @@ and releases use Semantic Versioning.
 - AppStream metadata, manual pages, and Debian policy validation for release
   packages.
 - Disposable-session integration coverage for the real GNOME proxy schema.
+- Virtual-display smoke coverage that constructs every GTK4 application window.
+- Ubuntu 26.04 and Python 3.14 package compatibility coverage.
 
 ### Changed
 

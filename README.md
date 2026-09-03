@@ -68,6 +68,9 @@ Supported release baseline: Ubuntu 24.04 or newer with GNOME, on amd64 or
 arm64. Other Debian-based distributions may work but are not currently part of
 the release test matrix.
 
+Package installation and runtime imports are also smoke-tested against Ubuntu
+26.04's Python 3.14 desktop stack.
+
 For a published version, download the package for your architecture from
 [GitHub Releases](https://github.com/fattoliu/shadowsocksx-ng-linux/releases),
 then install it with dependency resolution:

@@ -41,6 +41,7 @@ desktop settings:
 
 ```bash
 dbus-run-session -- env PYTHONPATH=. python3 scripts/smoke-gnome-proxy.py
+bash scripts/smoke-gtk4.sh
 ```
 
 Desktop and packaging changes should also be exercised on a clean supported
