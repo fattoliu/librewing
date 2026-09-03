@@ -252,7 +252,8 @@ Architecture: $ARCH
 Maintainer: fattoliu <724684054@qq.com>
 Homepage: https://github.com/fattoliu/shadowsocksx-ng-linux
 Depends: libc6, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-dbusmenu-glib-0.4, libdbusmenu-glib4, libglib2.0-bin, gsettings-desktop-schemas, shadowsocks-libev, libcap2-bin, libcork16, libev4, qrencode, zbar-tools, curl
-Recommends: gnome-shell-extension-appindicator, shadowsocks-v2ray-plugin
+Recommends: shadowsocks-v2ray-plugin
+Suggests: gnome-shell-extension-appindicator
 Description: Shadowsocks desktop client for Linux/Ubuntu
  Tray-first Shadowsocks client with native SOCKS global mode, PAC, GFWList,
  bundled simple-obfs client support, SIP003 plugins and GNOME proxy integration.
