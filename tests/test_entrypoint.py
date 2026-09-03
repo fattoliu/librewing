@@ -11,17 +11,19 @@ def test_launcher_uses_ng_feature_app_with_server_manager():
     beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
     ng = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
     assert "from .app_ng_features import main as app_main" in launcher
-    assert "ServerManagerDialog" in beta
-    assert "TrayApp.on_edit_server = _on_edit_server" in beta
-    assert "legacy_app.TrayApp.on_preferences = _on_preferences" in ng
-    assert "NgShadowsocksCore" in ng
-    assert "NgHttpProxyCore" in ng
+    assert "class BetaTrayApp(legacy_app.TrayApp)" in beta
+    assert "class NgTrayApp(app_beta.BetaTrayApp)" in ng
+    assert "on_edit_server = _on_edit_server" in ng
+    assert "on_preferences = _on_preferences" in ng
+    assert "shadowsocks_core_class = NgShadowsocksCore" in ng
+    assert "http_proxy_core_class = NgHttpProxyCore" in ng
+    assert "legacy_app.TrayApp." not in ng
 
 
 def test_beta_quit_preserves_selected_mode_and_stops_runtime():
     beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
-    assert "TrayApp.shutdown_runtime = _shutdown_runtime" in beta
-    assert "TrayApp.on_quit = _on_quit" in beta
+    assert "shutdown_runtime = _shutdown_runtime" in beta
+    assert "on_quit = _on_quit" in beta
     assert 'self.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in beta
     assert "for service in (self.http, self.core, self.pac):" in beta
     assert "service.stop()" in beta

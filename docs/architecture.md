@@ -20,9 +20,9 @@ LAN opt-in because they do not authenticate clients.
 
 Ayatana AppIndicator requires GTK3 in the tray process. Modern dialogs use
 GTK4/libadwaita in isolated helper processes, avoiding GTK3 and GTK4 in the
-same process. The current compatibility entrypoint still layers behavior from
-`app.py`, `app_beta.py`, and `app_ng_features.py`; replacing this dynamic
-patching with an explicit controller is the main 0.3 refactor.
+same process. `BetaTrayApp` and `NgTrayApp` form an explicit compatibility
+inheritance chain over the original tray class; runtime services are selected
+through class-level dependency injection rather than global monkey-patching.
 
 ## Persistent state
 
@@ -41,4 +41,3 @@ stopped process.
 - SIP003 plugins execute as the current user and must resolve to an executable.
 - GFWList and PAC templates require HTTPS and content validation.
 - Release builds verify bundled binary packages with pinned hashes.
-

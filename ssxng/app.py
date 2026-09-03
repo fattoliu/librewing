@@ -187,12 +187,17 @@ class LogDialog(Gtk.Dialog):
 
 
 class TrayApp:
+    shadowsocks_core_class = ShadowsocksCore
+    http_proxy_core_class = HttpProxyCore
+    system_proxy_class = SystemProxy
+    pac_server_class = PacServer
+
     def __init__(self):
         self.config = AppConfig.load()
-        self.core = ShadowsocksCore(self.config)
-        self.http = HttpProxyCore(self.config)
-        self.proxy = SystemProxy(self.config)
-        self.pac = PacServer(self.config)
+        self.core = self.shadowsocks_core_class(self.config)
+        self.http = self.http_proxy_core_class(self.config)
+        self.proxy = self.system_proxy_class(self.config)
+        self.pac = self.pac_server_class(self.config)
         self.pac.start()
         self.indicator = AppIndicator3.Indicator.new(
             APP_ID, "network-vpn-symbolic", AppIndicator3.IndicatorCategory.APPLICATION_STATUS

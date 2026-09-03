@@ -469,34 +469,39 @@ def _monitor_runtime(app) -> bool:
     return True
 
 
+class BetaTrayApp(legacy_app.TrayApp):
+    """Explicit compatibility layer for the expanded tray feature set."""
+
+    alert = _alert
+    on_add_server = _on_add_server
+    on_edit_server = _on_edit_server
+    on_delete_server = _on_delete_server
+    on_toggle_shadowsocks = _on_toggle_shadowsocks
+    on_toggle_autostart = _on_toggle_autostart
+    update_indicator_icon = _update_indicator_icon
+    rebuild_menu = _rebuild_menu
+    on_scan_screen_qr = _scan_screen_qr
+    on_copy_terminal_proxy_command = _copy_terminal_proxy_command
+    on_import_server_file = _on_import_server_file
+    on_export_server_file = _on_export_server_file
+    on_show_example_server_file = _on_show_example_server_file
+    on_share_server = _on_share_server
+    on_share_all_servers = _on_share_all_servers
+    diagnostics_text = _diagnostics_text
+    on_export_diagnostics = _on_export_diagnostics
+    on_check_updates = _on_check_updates
+    on_feedback = _on_feedback
+    on_help = _on_help
+    shutdown_runtime = _shutdown_runtime
+    on_quit = _on_quit
+
+
 def main() -> int:
-    legacy_app.TrayApp.alert = _alert
-    legacy_app.TrayApp.on_add_server = _on_add_server
-    legacy_app.TrayApp.on_edit_server = _on_edit_server
-    legacy_app.TrayApp.on_delete_server = _on_delete_server
-    legacy_app.TrayApp.on_toggle_shadowsocks = _on_toggle_shadowsocks
-    legacy_app.TrayApp.on_toggle_autostart = _on_toggle_autostart
-    legacy_app.TrayApp.update_indicator_icon = _update_indicator_icon
-    legacy_app.TrayApp.rebuild_menu = _rebuild_menu
-    legacy_app.TrayApp.on_scan_screen_qr = _scan_screen_qr
-    legacy_app.TrayApp.on_copy_terminal_proxy_command = _copy_terminal_proxy_command
-    legacy_app.TrayApp.on_import_server_file = _on_import_server_file
-    legacy_app.TrayApp.on_export_server_file = _on_export_server_file
-    legacy_app.TrayApp.on_show_example_server_file = _on_show_example_server_file
-    legacy_app.TrayApp.on_share_server = _on_share_server
-    legacy_app.TrayApp.on_share_all_servers = _on_share_all_servers
-    legacy_app.TrayApp.diagnostics_text = _diagnostics_text
-    legacy_app.TrayApp.on_export_diagnostics = _on_export_diagnostics
-    legacy_app.TrayApp.on_check_updates = _on_check_updates
-    legacy_app.TrayApp.on_feedback = _on_feedback
-    legacy_app.TrayApp.on_help = _on_help
-    legacy_app.TrayApp.shutdown_runtime = _shutdown_runtime
-    legacy_app.TrayApp.on_quit = _on_quit
 
     app = None
     try:
         install_dialog_styles()
-        app = legacy_app.TrayApp()
+        app = BetaTrayApp()
         app.rebuild_menu()
         _install_signal_handlers(app)
         legacy_app.GLib.timeout_add_seconds(2, _monitor_runtime, app)

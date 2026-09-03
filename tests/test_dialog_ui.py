@@ -19,5 +19,5 @@ def test_custom_dialogs_use_common_polish_helper():
 def test_beta_entrypoint_installs_dialog_styles_before_creating_app():
     beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
     install_pos = beta.index("install_dialog_styles()")
-    app_pos = beta.index("app = legacy_app.TrayApp()")
+    app_pos = beta.index("app = BetaTrayApp()")
     assert install_pos < app_pos

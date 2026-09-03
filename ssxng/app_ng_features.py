@@ -482,36 +482,51 @@ def _rebuild_menu(self) -> None:
     self.indicator.set_menu(menu)
 
 
+class NgTrayApp(app_beta.BetaTrayApp):
+    """Production tray application with explicit services and GTK4 helpers."""
+
+    shadowsocks_core_class = NgShadowsocksCore
+    http_proxy_core_class = NgHttpProxyCore
+    system_proxy_class = NgSystemProxy
+    pac_server_class = NgPacServer
+
+    alert = _alert4
+    ensure_core = _ensure_core
+    restore_mode = _restore_mode
+    on_mode = _on_mode
+    on_preferences = _on_preferences
+    on_import_url = _on_import_url4
+    on_edit_rules = _on_edit_rules4
+    on_update_gfwlist = _on_update_gfwlist4
+    on_test_latency = _on_test_latency4
+    on_logs = _on_logs4
+    on_about = _on_about4
+    on_edit_server = _on_edit_server
+    on_share_server = _on_share_server4
+    on_share_all_servers = _on_share_all_servers4
+    on_import_server_file = _on_import_server_file4
+    on_export_server_file = _on_export_server_file4
+    on_show_example_server_file = _on_show_example_server_file4
+    on_export_diagnostics = _on_export_diagnostics4
+    update_indicator_icon = _update_indicator_icon
+    rebuild_menu = _rebuild_menu
+
+
 def main() -> int:
-    legacy_app.ShadowsocksCore = NgShadowsocksCore
-    legacy_app.HttpProxyCore = NgHttpProxyCore
-    legacy_app.SystemProxy = NgSystemProxy
-    legacy_app.PacServer = NgPacServer
-
-    legacy_app.TrayApp.ensure_core = _ensure_core
-    legacy_app.TrayApp.restore_mode = _restore_mode
-    legacy_app.TrayApp.on_mode = _on_mode
-    legacy_app.TrayApp.on_preferences = _on_preferences
-    legacy_app.TrayApp.on_import_url = _on_import_url4
-    legacy_app.TrayApp.on_edit_rules = _on_edit_rules4
-    legacy_app.TrayApp.on_update_gfwlist = _on_update_gfwlist4
-    legacy_app.TrayApp.on_test_latency = _on_test_latency4
-    legacy_app.TrayApp.on_logs = _on_logs4
-    legacy_app.TrayApp.on_about = _on_about4
-
-    # app_beta.main rewires several TrayApp methods from its module-level
-    # symbols. Patch those symbols, not only TrayApp, or app_beta.main will
-    # silently restore the legacy GTK3 dialogs after this function returns.
-    app_beta._alert = _alert4
-    app_beta._on_edit_server = _on_edit_server
-    app_beta._on_update_gfwlist = _on_update_gfwlist4
-    app_beta._on_test_latency = _on_test_latency4
-    app_beta._on_share_server = _on_share_server4
-    app_beta._on_share_all_servers = _on_share_all_servers4
-    app_beta._on_import_server_file = _on_import_server_file4
-    app_beta._on_export_server_file = _on_export_server_file4
-    app_beta._on_show_example_server_file = _on_show_example_server_file4
-    app_beta._on_export_diagnostics = _on_export_diagnostics4
-    app_beta._update_indicator_icon = _update_indicator_icon
-    app_beta._rebuild_menu = _rebuild_menu
-    return app_beta.main()
+    app = None
+    try:
+        app_beta.install_dialog_styles()
+        app = NgTrayApp()
+        app.rebuild_menu()
+        app_beta._install_signal_handlers(app)
+        legacy_app.GLib.timeout_add_seconds(2, app_beta._monitor_runtime, app)
+        legacy_app.Gtk.main()
+        return 0
+    except KeyboardInterrupt:
+        return 130
+    except Exception as exc:
+        print(f"ssx-ng-linux: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if app is not None:
+            app.shutdown_runtime(quit_main=False)
