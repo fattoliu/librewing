@@ -11,6 +11,18 @@ requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 authors = [{name = "fattoliu"}]
 keywords = ["shadowsocks", "linux", "ubuntu", "proxy", "pac", "gfwlist"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: X11 Applications :: GTK",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Internet :: Proxy Servers",
+]
 dependencies = []
 
 [project.optional-dependencies]
@@ -22,6 +34,8 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/fattoliu/shadowsocksx-ng-linux"
+Issues = "https://github.com/fattoliu/shadowsocksx-ng-linux/issues"
+Changelog = "https://github.com/fattoliu/shadowsocksx-ng-linux/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ssx-ng-linux = "ssxng.launcher:main"
@@ -38,17 +52,10 @@ addopts = "--strict-markers --strict-config"
 branch = true
 source = ["ssxng"]
 omit = [
-  "ssxng/app.py",
-  "ssxng/app_beta.py",
   "ssxng/app_ng_features.py",
-  "ssxng/advanced_settings.py",
   "ssxng/feedback_ui4.py",
   "ssxng/modern_ui4.py",
-  "ssxng/preferences_ng.py",
-  "ssxng/server_manager.py",
   "ssxng/server_manager4.py",
-  "ssxng/share_dialog.py",
-  "ssxng/ui.py",
   "ssxng/runtime_ng.py",
   "ssxng/screen_qr.py",
   "ssxng/server_json.py",
@@ -59,7 +66,7 @@ omit = [
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 55
+fail_under = 65
 exclude_lines = [
   "pragma: no cover",
   "if __name__ == .__main__.:",
@@ -79,10 +86,7 @@ ignore = ["E501", "I001", "B904", "UP037"]
 [tool.ruff.lint.per-file-ignores]
 # PyGObject requires gi.require_version() before importing gi.repository, which
 # necessarily puts the following project imports after executable statements.
-"ssxng/app.py" = ["E402"]
+"ssxng/app_ng_features.py" = ["E402"]
 "ssxng/feedback_ui4.py" = ["E402"]
 "ssxng/modern_ui4.py" = ["E402"]
-"ssxng/preferences_ng.py" = ["E402"]
-"ssxng/server_manager.py" = ["E402"]
 "ssxng/server_manager4.py" = ["E402"]
-"ssxng/ui.py" = ["E402"]

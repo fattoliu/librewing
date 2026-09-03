@@ -6,43 +6,46 @@ def test_desktop_entrypoint_uses_launcher():
     assert 'ssx-ng-linux = "ssxng.launcher:main"' in pyproject
 
 
-def test_launcher_uses_ng_feature_app_with_server_manager():
+def test_launcher_uses_status_notifier_tray_and_ng_runtime():
     launcher = Path("ssxng/launcher.py").read_text(encoding="utf-8")
-    beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
-    ng = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
     assert "from .app_ng_features import main as app_main" in launcher
-    assert "class BetaTrayApp(legacy_app.TrayApp)" in beta
-    assert "class NgTrayApp(app_beta.BetaTrayApp)" in ng
-    assert "on_edit_server = _on_edit_server" in ng
-    assert "on_preferences = _on_preferences" in ng
-    assert "shadowsocks_core_class = NgShadowsocksCore" in ng
-    assert "http_proxy_core_class = NgHttpProxyCore" in ng
-    assert "legacy_app.TrayApp." not in ng
+    assert "class StatusNotifierItem:" in app
+    assert "class NgTrayApp:" in app
+    assert "Dbusmenu.Server.new" in app
+    assert "org.kde.StatusNotifierItem" in app
+    assert "NgShadowsocksCore(self.config)" in app
+    assert 'gi.require_version("Gtk", "4.0")' in app
+    assert 'gi.require_version("Gtk", "3.0")' not in app
+    assert "AyatanaAppIndicator" not in app
 
 
-def test_beta_quit_preserves_selected_mode_and_stops_runtime():
-    beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
-    assert "shutdown_runtime = _shutdown_runtime" in beta
-    assert "on_quit = _on_quit" in beta
-    assert 'self.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in beta
-    assert "for service in (self.http, self.core, self.pac):" in beta
-    assert "service.stop()" in beta
-    assert "_runtime_shutdown" in beta
+def test_tray_shutdown_fails_closed_and_stops_services():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    assert 'self.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in app
+    assert "for service in (self.http, self.core, self.pac):" in app
+    assert "self.indicator.close()" in app
+    assert "signal.SIGTERM" in app
+    assert "signal.SIGINT" in app
+    assert "GLib.unix_signal_add" in app
+    assert "app.shutdown_runtime(quit_main=False)" in app
 
 
-def test_beta_registers_unix_signal_cleanup_and_finally_guard():
-    beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
-    assert "signal.SIGTERM" in beta
-    assert "signal.SIGINT" in beta
-    assert "GLib.unix_signal_add" in beta
-    assert "_install_signal_handlers(app)" in beta
-    assert "finally:" in beta
-    assert "app.shutdown_runtime(quit_main=False)" in beta
+def test_runtime_monitor_fails_closed():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    assert "def monitor_runtime(self)" in app
+    assert "GLib.timeout_add_seconds" in app
+    assert "Proxy core stopped unexpectedly" in app
 
 
-def test_beta_monitors_proxy_core_and_fails_closed():
-    beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
-    assert "def _monitor_runtime(app)" in beta
-    assert "GLib.timeout_add_seconds" in beta
-    assert 'app.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in beta
-    assert "Proxy core stopped unexpectedly" in beta
+def test_no_legacy_gtk_modules_remain():
+    legacy = {
+        "app.py",
+        "app_beta.py",
+        "advanced_settings.py",
+        "preferences_ng.py",
+        "server_manager.py",
+        "share_dialog.py",
+        "ui.py",
+    }
+    assert legacy.isdisjoint({path.name for path in Path("ssxng").glob("*.py")})

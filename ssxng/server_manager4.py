@@ -30,7 +30,7 @@ CIPHERS = [
 
 
 class ServerSettingsApp(Adw.Application):
-    """Modern GTK4/libadwaita server editor, isolated from the GTK3 tray."""
+    """GTK4/libadwaita server editor isolated from the tray controller."""
 
     def __init__(self) -> None:
         super().__init__(application_id="io.github.fattoliu.shadowsocksxng.ServerSettings")
