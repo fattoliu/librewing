@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from .config import ServerProfile
+from .config import ServerProfile, write_private_text
 
 FORMAT = "shadowsocksx-ng-linux-servers"
 VERSION = 1
@@ -18,7 +18,7 @@ def export_servers(profiles: list[ServerProfile], output: Path) -> Path:
         "version": VERSION,
         "servers": [asdict(profile) for profile in profiles],
     }
-    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_private_text(output, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return output
 
 

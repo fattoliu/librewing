@@ -1,4 +1,5 @@
 import json
+import stat
 
 from ssxng import config
 
@@ -98,3 +99,33 @@ def test_write_runtime_honors_advanced_socks_preferences(tmp_path, monkeypatch):
     assert runtime["local_address"] == "0.0.0.0"
     assert runtime["timeout"] == 45
     assert runtime["mode"] == "tcp_only"
+
+
+def test_sensitive_state_uses_owner_only_permissions(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path / "state")
+    monkeypatch.setattr(config, "CONFIG_FILE", config.APP_DIR / "config.json")
+    monkeypatch.setattr(config, "RUNTIME_FILE", config.APP_DIR / "runtime.json")
+    cfg = config.AppConfig(
+        profiles=[config.ServerProfile(server="example.com", password="secret")]
+    )
+
+    cfg.save()
+    cfg.write_runtime()
+
+    assert stat.S_IMODE(config.APP_DIR.stat().st_mode) == 0o700
+    assert stat.S_IMODE(config.CONFIG_FILE.stat().st_mode) == 0o600
+    assert stat.S_IMODE(config.RUNTIME_FILE.stat().st_mode) == 0o600
+
+
+def test_load_repairs_existing_config_permissions(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "APP_DIR", tmp_path / "state")
+    monkeypatch.setattr(config, "CONFIG_FILE", config.APP_DIR / "config.json")
+    config.APP_DIR.mkdir(mode=0o755)
+    config.CONFIG_FILE.write_text(json.dumps({"mode": "manual"}), encoding="utf-8")
+    config.CONFIG_FILE.chmod(0o644)
+
+    loaded = config.AppConfig.load()
+
+    assert loaded.mode == "manual"
+    assert stat.S_IMODE(config.APP_DIR.stat().st_mode) == 0o700
+    assert stat.S_IMODE(config.CONFIG_FILE.stat().st_mode) == 0o600

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import asdict
 from pathlib import Path
 
-from .config import AppConfig, ServerProfile
+from .config import AppConfig, ServerProfile, write_private_text
 
 
 class BackupError(ValueError):
@@ -25,11 +24,7 @@ def export_backup(config: AppConfig, output: Path) -> Path:
         "version": 1,
         "config": asdict(config),
     }
-    temp = output.with_name(output.name + ".tmp")
-    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.chmod(temp, 0o600)
-    temp.replace(output)
-    os.chmod(output, 0o600)
+    write_private_text(output, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return output
 
 

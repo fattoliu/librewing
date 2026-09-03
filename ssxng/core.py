@@ -47,8 +47,11 @@ def _stop_process(process: subprocess.Popen[str] | None) -> None:
 
 
 def _open_log(component: str) -> TextIO:
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    handle = LOG_FILE.open("a", encoding="utf-8", buffering=1)
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(LOG_FILE.parent, 0o700)
+    descriptor = os.open(LOG_FILE, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    os.fchmod(descriptor, 0o600)
+    handle = os.fdopen(descriptor, "a", encoding="utf-8", buffering=1)
     stamp = time.strftime("%Y-%m-%d %H:%M:%S")
     handle.write(f"\n[{stamp}] === {component} start ===\n")
     return handle

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,38 @@ LOG_FILE = APP_DIR / "app.log"
 DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
 DEFAULT_ABP_TEMPLATE_URL = "https://raw.githubusercontent.com/shadowsocks/ShadowsocksX-NG/develop/ShadowsocksX-NG/abp.js"
 DEFAULT_PROXY_EXCEPTIONS = "127.0.0.1, localhost, 192.168.0.0/16, 10.0.0.0/8, FE80::/64, ::1, FD00::/8"
+
+
+def ensure_private_directory(path: Path) -> None:
+    """Create a user-owned state directory and repair permissive modes."""
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(path, 0o700)
+
+
+def write_private_text(path: Path, content: str) -> None:
+    """Atomically write sensitive text with owner-only permissions."""
+    path = Path(path)
+    ensure_private_directory(path.parent)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = -1
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        os.chmod(path, 0o600)
+    except Exception:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 @dataclass
@@ -67,11 +101,12 @@ class AppConfig:
 
     @classmethod
     def load(cls) -> AppConfig:
-        APP_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_private_directory(APP_DIR)
         if not CONFIG_FILE.exists():
             cfg = cls()
             cfg.save()
             return cfg
+        os.chmod(CONFIG_FILE, 0o600)
         try:
             raw = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
@@ -106,16 +141,14 @@ class AppConfig:
         backup = CONFIG_FILE.with_name(f"config.invalid-{stamp}.json")
         try:
             shutil.copy2(CONFIG_FILE, backup)
+            os.chmod(backup, 0o600)
             return backup
         except OSError:
             return None
 
     def save(self) -> None:
-        APP_DIR.mkdir(parents=True, exist_ok=True)
         content = json.dumps(asdict(self), ensure_ascii=False, indent=2) + "\n"
-        temporary = CONFIG_FILE.with_suffix(".json.tmp")
-        temporary.write_text(content, encoding="utf-8")
-        temporary.replace(CONFIG_FILE)
+        write_private_text(CONFIG_FILE, content)
 
     @property
     def profile(self) -> ServerProfile:
@@ -137,5 +170,5 @@ class AppConfig:
             runtime["plugin"] = resolve_plugin(p.plugin)
         if p.plugin_opts:
             runtime["plugin_opts"] = p.plugin_opts
-        RUNTIME_FILE.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        write_private_text(RUNTIME_FILE, json.dumps(runtime, ensure_ascii=False, indent=2) + "\n")
         return RUNTIME_FILE
