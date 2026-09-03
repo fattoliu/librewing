@@ -1,0 +1,25 @@
+ShadowsocksX-NG Linux
+Copyright (C) 2026 fattoliu and contributors
+
+This project is licensed under GPL-3.0-or-later. See LICENSE.
+
+Upstream ShadowsocksX-NG
+-----------------------
+
+The tray status icons under assets/upstream/ originate from ShadowsocksX-NG:
+https://github.com/shadowsocks/ShadowsocksX-NG/tree/develop/ShadowsocksX-NG/images
+
+ShadowsocksX-NG is licensed under GPL-3.0. Its project concepts and user
+experience also informed this independent Linux implementation. This project
+is not endorsed by or affiliated with the upstream Shadowsocks project.
+
+simple-obfs
+-----------
+
+Release packages may contain the obfs-local executable from simple-obfs:
+https://github.com/shadowsocks/simple-obfs
+
+The Debian build copies the accompanying copyright metadata into
+/usr/share/doc/shadowsocksx-ng-linux/simple-obfs-copyright. The exact source
+package version and SHA-256 values are pinned in scripts/build-deb.sh.
+

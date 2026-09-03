@@ -1,8 +1,16 @@
 # ShadowsocksX-NG Linux
 
+[![CI](https://github.com/fattoliu/shadowsocksx-ng-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/fattoliu/shadowsocksx-ng-linux/actions/workflows/ci.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
+
 A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG), with a tray-first workflow and GNOME integration.
 
 The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
+
+> **Project status:** pre-1.0. The core workflow is usable, but releases should
+> be treated as prereleases until the manual GNOME compatibility checklist is
+> complete. See [ROADMAP.md](ROADMAP.md).
 
 ## Current feature set
 
@@ -56,10 +64,23 @@ The HTTP bridge exists because terminal tools and many Linux desktop application
 
 ## Ubuntu install
 
+Supported release baseline: Ubuntu 24.04 or newer with GNOME, on amd64 or
+arm64. Other Debian-based distributions may work but are not currently part of
+the release test matrix.
+
+For a published version, download the package for your architecture from
+[GitHub Releases](https://github.com/fattoliu/shadowsocksx-ng-linux/releases),
+then install it with dependency resolution:
+
+```bash
+sudo apt install ./shadowsocksx-ng-linux_VERSION_ARCH.deb
+```
+
+For source builds:
+
 ```bash
 git clone https://github.com/fattoliu/shadowsocksx-ng-linux.git
 cd shadowsocksx-ng-linux
-git checkout dev/mvp
 bash scripts/install-ubuntu.sh
 ```
 
@@ -90,7 +111,21 @@ Plugin: obfs-local
 Plugin options: obfs=tls
 ```
 
-The current bundled simple-obfs runtime packaging targets Ubuntu 26.04 on amd64/arm64. Other SIP003 plugins remain externally installable and are detected automatically.
+The bundled simple-obfs runtime uses Ubuntu 24.04 as its compatibility baseline
+and supports amd64/arm64. Other SIP003 plugins remain externally installable
+and are detected automatically.
+
+## Listener security
+
+SOCKS5, HTTP proxy, and PAC services listen on loopback by default. The SOCKS5
+and HTTP services do not authenticate clients, so a non-loopback listen address
+is rejected unless its corresponding **Allow … From LAN** preference is also
+enabled. Only enable LAN access on a trusted network with an appropriate host
+firewall.
+
+Configuration, runtime state, logs, backups, and exported server files can
+contain credentials or sensitive connection details. They are written with
+owner-only permissions. Do not attach them to public issues without redaction.
 
 ## Terminal proxy
 
@@ -148,7 +183,9 @@ pytest -q --cov=ssxng --cov-branch
 ruff check ssxng tests
 ```
 
-Active development is on `dev/mvp`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for Ubuntu dependencies, quality gates,
+and pull-request expectations. Architecture and release details live under
+[`docs/`](docs/architecture.md).
 
 ### Debian package build
 
@@ -156,7 +193,12 @@ Active development is on `dev/mvp`.
 bash scripts/build-deb.sh
 ```
 
-By default the build embeds `obfs-local`. A clean build downloads an Ubuntu 26.04 amd64/arm64 simple-obfs package at build time and extracts only the client runtime into our package. Development machines that already have `obfs-local` may reuse that local executable. Set `BUNDLE_SIMPLE_OBFS=0` only for special development builds that intentionally omit simple-obfs support.
+By default the build embeds `obfs-local`. It downloads the pinned Ubuntu 24.04
+amd64/arm64 source package, verifies its architecture-specific SHA-256, and
+extracts only the client runtime. Builds never silently reuse a binary from
+`PATH`. Set `SIMPLE_OBFS_BINARY=/absolute/path/to/obfs-local` for an explicit
+development override, or `BUNDLE_SIMPLE_OBFS=0` for a build that intentionally
+omits it. Official releases must use the pinned artifacts.
 
 ## MVP release checklist
 
@@ -174,6 +216,7 @@ Before tagging a release, verify:
 
 ## License
 
-GPL-3.0-or-later.
+GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete license and
+[NOTICE](NOTICE) for upstream assets and bundled third-party software.
 
 This project is not an official Shadowsocks project.
