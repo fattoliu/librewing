@@ -219,13 +219,19 @@ def _on_preferences(self, _item) -> None:
     before = {
         "socks": (
             self.config.socks_listen_address,
+            self.config.socks_allow_lan,
             self.config.profile.local_port,
             self.config.socks_timeout,
             self.config.udp_relay,
             self.config.verbose_mode,
         ),
         "pac": (self.config.pac_bind_localhost, self.config.pac_port),
-        "http": (self.config.http_enabled, self.config.http_listen_address, self.config.http_port),
+        "http": (
+            self.config.http_enabled,
+            self.config.http_listen_address,
+            self.config.http_allow_lan,
+            self.config.http_port,
+        ),
     }
     try:
         result = _ui4("preferences")
@@ -236,13 +242,19 @@ def _on_preferences(self, _item) -> None:
 
         after_socks = (
             self.config.socks_listen_address,
+            self.config.socks_allow_lan,
             self.config.profile.local_port,
             self.config.socks_timeout,
             self.config.udp_relay,
             self.config.verbose_mode,
         )
         after_pac = (self.config.pac_bind_localhost, self.config.pac_port)
-        after_http = (self.config.http_enabled, self.config.http_listen_address, self.config.http_port)
+        after_http = (
+            self.config.http_enabled,
+            self.config.http_listen_address,
+            self.config.http_allow_lan,
+            self.config.http_port,
+        )
 
         core_running = self.core.running()
         if core_running and before["socks"] != after_socks:

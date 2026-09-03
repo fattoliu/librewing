@@ -22,7 +22,8 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 
 
 def port_available(port: int, host: str = "127.0.0.1") -> bool:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_STREAM)
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, int(port)))
@@ -31,6 +32,37 @@ def port_available(port: int, host: str = "127.0.0.1") -> bool:
         return False
     finally:
         sock.close()
+
+
+def connect_host(value: str) -> str:
+    """Return a concrete local address suitable for connecting to a listener."""
+    value = (value or "127.0.0.1").strip()
+    if value == "0.0.0.0" or value == "localhost":
+        return "127.0.0.1"
+    if value == "::":
+        return "::1"
+    return value
+
+
+def is_loopback_address(value: str) -> bool:
+    """Return whether a configured listener is restricted to this machine."""
+    value = (value or "127.0.0.1").strip().strip("[]")
+    if value.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(value).is_loopback
+    except ValueError:
+        return False
+
+
+def require_safe_bind(value: str, allow_lan: bool, service: str) -> str:
+    """Reject accidental unauthenticated LAN proxy exposure."""
+    host = (value or "127.0.0.1").strip()
+    if not allow_lan and not is_loopback_address(host):
+        raise RuntimeError(
+            f"{service} cannot listen on non-loopback address {host!r} unless LAN access is explicitly enabled."
+        )
+    return host
 
 
 def _stop_process(process: subprocess.Popen[str] | None) -> None:
@@ -75,16 +107,24 @@ class ShadowsocksCore:
         profile = self.config.profile
         if not profile.server or not profile.password:
             raise RuntimeError("Please configure a Shadowsocks server first.")
-        if not port_available(profile.local_port):
+        host = require_safe_bind(
+            self.config.socks_listen_address,
+            self.config.socks_allow_lan,
+            "SOCKS5 proxy",
+        )
+        if not port_available(profile.local_port, host):
             raise RuntimeError(
-                f"Local SOCKS port {profile.local_port} is already in use.\n\n"
+                f"Local SOCKS port {host}:{profile.local_port} is already in use.\n\n"
                 "If you previously enabled shadowsocks-libev as a systemd service, stop it before using this client:\n"
                 "sudo systemctl disable --now shadowsocks-libev-local@config.service"
             )
         runtime = self.config.write_runtime()
         self.log_handle = _open_log("ss-local")
+        command = [self.find_ss_local(), "-c", str(runtime)]
+        if self.config.verbose_mode:
+            command.append("-v")
         self.process = subprocess.Popen(
-            [self.find_ss_local(), "-c", str(runtime), "-v"],
+            command,
             stdout=self.log_handle,
             stderr=subprocess.STDOUT,
             text=True,
@@ -209,6 +249,10 @@ class _ThreadingHTTPProxy(socketserver.ThreadingTCPServer):
     daemon_threads = True
 
 
+class _ThreadingHTTPProxy6(_ThreadingHTTPProxy):
+    address_family = socket.AF_INET6
+
+
 class HttpProxyCore:
     """Small HTTP/HTTPS proxy that tunnels traffic through the local SOCKS5 listener.
 
@@ -223,14 +267,29 @@ class HttpProxyCore:
         self.thread: threading.Thread | None = None
 
     def start(self) -> None:
-        if self.running():
+        if self.running() or not self.config.http_enabled:
             return
-        if not port_available(self.config.http_port):
-            raise RuntimeError(f"Local HTTP proxy port {self.config.http_port} is already in use.")
+        listen_host = require_safe_bind(
+            self.config.http_listen_address,
+            self.config.http_allow_lan,
+            "HTTP proxy",
+        )
+        if not port_available(self.config.http_port, listen_host):
+            raise RuntimeError(
+                f"Local HTTP proxy port {listen_host}:{self.config.http_port} is already in use."
+            )
 
         config = self.config
+        socks_host = connect_host(config.socks_listen_address)
 
         class Handler(socketserver.BaseRequestHandler):
+            def error_response(self, status: bytes) -> None:
+                self.request.sendall(
+                    b"HTTP/1.1 " + status + b"\r\n"
+                    b"Proxy-Agent: ShadowsocksX-NG-Linux\r\n"
+                    b"Connection: close\r\n\r\n"
+                )
+
             def handle(self) -> None:
                 client: socket.socket = self.request
                 client.settimeout(15)
@@ -241,7 +300,7 @@ class HttpProxyCore:
                         return
                     data.extend(chunk)
                     if len(data) > 1024 * 1024:
-                        client.sendall(b"HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n")
+                        self.error_response(b"431 Request Header Fields Too Large")
                         return
 
                 header_end = data.index(b"\r\n\r\n") + 4
@@ -251,13 +310,13 @@ class HttpProxyCore:
                 try:
                     method, target, version = lines[0].split(" ", 2)
                 except ValueError:
-                    client.sendall(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n")
+                    self.error_response(b"400 Bad Request")
                     return
 
                 try:
                     if method.upper() == "CONNECT":
                         host, port = _split_host_port(target, 443)
-                        remote = _socks5_connect("127.0.0.1", config.profile.local_port, host, port)
+                        remote = _socks5_connect(socks_host, config.profile.local_port, host, port)
                         try:
                             client.sendall(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: ShadowsocksX-NG-Linux\r\n\r\n")
                             if body_prefix:
@@ -269,6 +328,8 @@ class HttpProxyCore:
                         return
 
                     parsed = urlsplit(target)
+                    if parsed.scheme and parsed.scheme.lower() != "http":
+                        raise ValueError("plain proxy requests must use the http scheme")
                     host_header = next(
                         (line[5:].strip() for line in lines[1:] if line.lower().startswith("host:")),
                         "",
@@ -285,18 +346,22 @@ class HttpProxyCore:
                     path = parsed.path or "/"
                     if parsed.query:
                         path += "?" + parsed.query
-                    clean_headers = [
-                        line
-                        for line in lines[1:]
-                        if line and not line.lower().startswith("proxy-connection:")
-                    ]
+                    clean_headers = []
+                    for line in lines[1:]:
+                        lower = line.lower()
+                        if not line or lower.startswith(
+                            ("proxy-connection:", "proxy-authorization:", "connection:", "keep-alive:")
+                        ):
+                            continue
+                        clean_headers.append(line)
+                    clean_headers.append("Connection: close")
                     forwarded = (
                         f"{method} {path} {version}\r\n"
                         + "\r\n".join(clean_headers)
                         + "\r\n\r\n"
                     ).encode("iso-8859-1") + body_prefix
 
-                    remote = _socks5_connect("127.0.0.1", config.profile.local_port, host, int(port))
+                    remote = _socks5_connect(socks_host, config.profile.local_port, host, int(port))
                     try:
                         remote.sendall(forwarded)
                         client.settimeout(None)
@@ -305,12 +370,13 @@ class HttpProxyCore:
                         remote.close()
                 except Exception:
                     try:
-                        client.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
+                        self.error_response(b"502 Bad Gateway")
                     except OSError:
                         pass
 
         try:
-            self.server = _ThreadingHTTPProxy(("127.0.0.1", self.config.http_port), Handler)
+            server_class = _ThreadingHTTPProxy6 if ":" in listen_host else _ThreadingHTTPProxy
+            self.server = server_class((listen_host, self.config.http_port), Handler)
             self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.thread.start()
         except Exception:

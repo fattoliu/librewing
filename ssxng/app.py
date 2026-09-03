@@ -547,7 +547,7 @@ class TrayApp:
             f"GFWList domains: {len(load_gfwlist_domains(self.config))}\n"
             f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}\n"
             f"Autostart: {'enabled' if autostart_enabled() else 'disabled'}\n"
-            f"Plugins found: {len(plugins)}\n"
+            f"Plugins found: {plugins.available_count}\n"
             f"Log: {LOG_FILE}",
             Gtk.MessageType.INFO,
         )

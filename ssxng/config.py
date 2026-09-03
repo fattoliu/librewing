@@ -87,11 +87,13 @@ class AppConfig:
 
     # Mirrors the useful parts of ShadowsocksX-NG's Advanced/HTTP/PAC prefs.
     socks_listen_address: str = "127.0.0.1"
+    socks_allow_lan: bool = False
     socks_timeout: int = 60
     udp_relay: bool = True
     verbose_mode: bool = False
     http_enabled: bool = True
     http_listen_address: str = "127.0.0.1"
+    http_allow_lan: bool = False
     pac_bind_localhost: bool = True
     external_pac_url: str = ""
     proxy_exceptions: str = DEFAULT_PROXY_EXCEPTIONS

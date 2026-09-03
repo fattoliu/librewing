@@ -371,7 +371,7 @@ def _diagnostics_text(self) -> str:
         f"GFWList domains: {len(legacy_app.load_gfwlist_domains(self.config))}\n"
         f"GFWList updated: {self.config.gfwlist_updated_at or 'never'}\n"
         f"Autostart: {'enabled' if legacy_app.autostart_enabled() else 'disabled'}\n"
-        f"Plugins found: {len(plugins)}\n"
+        f"Plugins found: {plugins.available_count}\n"
         f"Log: {legacy_app.LOG_FILE}\n"
     )
 
@@ -444,6 +444,31 @@ def _install_signal_handlers(app) -> None:
         )
 
 
+def _monitor_runtime(app) -> bool:
+    """Fail closed when ss-local exits while a proxy mode is active."""
+    if getattr(app, "_runtime_shutdown", False) or app.config.mode == "off":
+        return True
+    if app.core.running():
+        app._runtime_failure_reported = False
+        return True
+    if getattr(app, "_runtime_failure_reported", False):
+        return True
+
+    app._runtime_failure_reported = True
+    try:
+        app.proxy._gsettings("org.gnome.system.proxy", "mode", "'none'")
+    except Exception:
+        pass
+    try:
+        app.http.stop()
+    except Exception:
+        pass
+    app.update_indicator_icon()
+    app.rebuild_menu()
+    app.alert(tr("Proxy core stopped unexpectedly. System proxy was disabled to keep networking available."))
+    return True
+
+
 def main() -> int:
     legacy_app.TrayApp.alert = _alert
     legacy_app.TrayApp.on_add_server = _on_add_server
@@ -474,6 +499,7 @@ def main() -> int:
         app = legacy_app.TrayApp()
         app.rebuild_menu()
         _install_signal_handlers(app)
+        legacy_app.GLib.timeout_add_seconds(2, _monitor_runtime, app)
         legacy_app.Gtk.main()
         return 0
     except KeyboardInterrupt:

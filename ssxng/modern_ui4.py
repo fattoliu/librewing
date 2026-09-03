@@ -295,11 +295,13 @@ class PreferencesApp(Adw.Application):
     def _advanced(self) -> Gtk.Widget:
         socks = self._group("SOCKS5")
         self.socks_addr = self._entry_row(tr("Local Socks5 Listen Address:"), self.config.socks_listen_address)
+        self.socks_lan = self._switch_row(tr("Allow SOCKS5 Connections From LAN"), self.config.socks_allow_lan)
+        self.socks_lan.set_subtitle(tr("Warning: SOCKS5 clients are not authenticated."))
         self.socks_port = self._spin_row(tr("Local Socks5 Listen Port:"), self.config.profile.local_port, 1024)
         self.timeout = self._spin_row(tr("Timeout:"), self.config.socks_timeout, 1, 3600)
         self.udp = self._switch_row(tr("Enable Udp Replay"), self.config.udp_relay)
         self.verbose = self._switch_row(tr("Enable Verbose Mode"), self.config.verbose_mode)
-        for row in (self.socks_addr, self.socks_port, self.timeout, self.udp, self.verbose):
+        for row in (self.socks_addr, self.socks_lan, self.socks_port, self.timeout, self.udp, self.verbose):
             socks.add(row)
 
         pac = self._group(_t("PAC service"))
@@ -314,9 +316,11 @@ class PreferencesApp(Adw.Application):
         group = self._group(_t("HTTP service"))
         self.http_enabled = self._switch_row(tr("HTTP Proxy Enable"), self.config.http_enabled)
         self.http_addr = self._entry_row(tr("HTTP Proxy Listen Address:"), self.config.http_listen_address)
+        self.http_lan = self._switch_row(tr("Allow HTTP Proxy Connections From LAN"), self.config.http_allow_lan)
+        self.http_lan.set_subtitle(tr("Warning: HTTP proxy clients are not authenticated."))
         self.http_port = self._spin_row(tr("HTTP Proxy Listen Port:"), self.config.http_port, 1024)
         self.abp_url = self._entry_row(tr("ABP PAC engine URL"), self.config.abp_template_url)
-        for row in (self.http_enabled, self.http_addr, self.http_port, self.abp_url):
+        for row in (self.http_enabled, self.http_addr, self.http_lan, self.http_port, self.abp_url):
             group.add(row)
         return self._page(group)
 
@@ -336,6 +340,13 @@ class PreferencesApp(Adw.Application):
                 parsed = urlparse(external)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     raise ValueError(tr("External PAC URL must be a valid HTTP or HTTPS URL."))
+            for label, value in (
+                ("GFWList URL", self.gfw_url.get_text().strip()),
+                ("ABP PAC engine URL", self.abp_url.get_text().strip()),
+            ):
+                parsed = urlparse(value)
+                if parsed.scheme != "https" or not parsed.netloc:
+                    raise ValueError(tr("{label} must be a valid HTTPS URL.", label=label))
             socks = int(self.socks_port.get_value())
             pac = int(self.pac_port.get_value())
             http = int(self.http_port.get_value())
@@ -347,6 +358,7 @@ class PreferencesApp(Adw.Application):
             c.gfwlist_enabled = self.gfw_enabled.get_active()
             c.gfwlist_url = self.gfw_url.get_text().strip()
             c.socks_listen_address = self.socks_addr.get_text().strip() or "127.0.0.1"
+            c.socks_allow_lan = self.socks_lan.get_active()
             c.profile.local_port = socks
             c.pac_bind_localhost = self.pac_local.get_active()
             c.pac_port = pac
@@ -356,6 +368,7 @@ class PreferencesApp(Adw.Application):
             c.external_pac_url = external
             c.http_enabled = self.http_enabled.get_active()
             c.http_listen_address = self.http_addr.get_text().strip() or "127.0.0.1"
+            c.http_allow_lan = self.http_lan.get_active()
             c.http_port = http
             c.abp_template_url = self.abp_url.get_text().strip()
             c.proxy_exceptions = self.exceptions.get_text().strip()

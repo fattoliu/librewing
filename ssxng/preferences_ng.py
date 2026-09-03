@@ -101,33 +101,37 @@ class PreferencesNgDialog(Gtk.Dialog):
         self.socks_addr = Gtk.Entry(text=self.config.socks_listen_address)
         _row(grid, 0, "Local Socks5 Listen Address:", self.socks_addr)
 
+        self.socks_lan = Gtk.CheckButton(label=tr("Allow SOCKS5 Connections From LAN"))
+        self.socks_lan.set_active(self.config.socks_allow_lan)
+        grid.attach(self.socks_lan, 0, 1, 2, 1)
+
         self.socks_port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
         self.socks_port.set_value(self.config.profile.local_port)
-        _row(grid, 1, "Local Socks5 Listen Port:", self.socks_port)
+        _row(grid, 2, "Local Socks5 Listen Port:", self.socks_port)
 
         self.pac_local = Gtk.CheckButton(label=tr("Local PAC Server Bind To Localhost"))
         self.pac_local.set_active(self.config.pac_bind_localhost)
-        grid.attach(self.pac_local, 0, 2, 2, 1)
+        grid.attach(self.pac_local, 0, 3, 2, 1)
 
         self.pac_port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
         self.pac_port.set_value(self.config.pac_port)
-        _row(grid, 3, "Local PAC Server Listen Port:", self.pac_port)
+        _row(grid, 4, "Local PAC Server Listen Port:", self.pac_port)
 
         self.timeout = Gtk.SpinButton.new_with_range(1, 3600, 1)
         self.timeout.set_value(self.config.socks_timeout)
-        _row(grid, 4, "Timeout:", self.timeout)
+        _row(grid, 5, "Timeout:", self.timeout)
 
         self.udp = Gtk.CheckButton(label=tr("Enable Udp Replay"))
         self.udp.set_active(self.config.udp_relay)
-        grid.attach(self.udp, 0, 5, 2, 1)
+        grid.attach(self.udp, 0, 6, 2, 1)
 
         self.verbose = Gtk.CheckButton(label=tr("Enable Verbose Mode"))
         self.verbose.set_active(self.config.verbose_mode)
-        grid.attach(self.verbose, 0, 6, 2, 1)
+        grid.attach(self.verbose, 0, 7, 2, 1)
 
         self.external_url = Gtk.Entry(text=self.config.external_pac_url)
         self.external_url.set_placeholder_text("https://example.com/proxy.pac")
-        _row(grid, 7, "External PAC URL:", self.external_url)
+        _row(grid, 8, "External PAC URL:", self.external_url)
         return grid
 
     def _http_page(self) -> Gtk.Widget:
@@ -139,12 +143,16 @@ class PreferencesNgDialog(Gtk.Dialog):
         self.http_addr = Gtk.Entry(text=self.config.http_listen_address)
         _row(grid, 1, "HTTP Proxy Listen Address:", self.http_addr)
 
+        self.http_lan = Gtk.CheckButton(label=tr("Allow HTTP Proxy Connections From LAN"))
+        self.http_lan.set_active(self.config.http_allow_lan)
+        grid.attach(self.http_lan, 0, 2, 2, 1)
+
         self.http_port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
         self.http_port.set_value(self.config.http_port)
-        _row(grid, 2, "HTTP Proxy Listen Port:", self.http_port)
+        _row(grid, 3, "HTTP Proxy Listen Port:", self.http_port)
 
         self.abp_url = Gtk.Entry(text=self.config.abp_template_url)
-        _row(grid, 3, "ABP PAC engine URL", self.abp_url)
+        _row(grid, 4, "ABP PAC engine URL", self.abp_url)
         return grid
 
     def _network_page(self) -> Gtk.Widget:
@@ -163,6 +171,13 @@ class PreferencesNgDialog(Gtk.Dialog):
             parsed = urlparse(external)
             if parsed.scheme not in ("http", "https") or not parsed.netloc:
                 raise ValueError(tr("External PAC URL must be a valid HTTP or HTTPS URL."))
+        for label, value in (
+            ("GFWList URL", self.gfw_url.get_text().strip()),
+            ("ABP PAC engine URL", self.abp_url.get_text().strip()),
+        ):
+            parsed = urlparse(value)
+            if parsed.scheme != "https" or not parsed.netloc:
+                raise ValueError(tr("{label} must be a valid HTTPS URL.", label=label))
 
         socks_port = self.socks_port.get_value_as_int()
         pac_port = self.pac_port.get_value_as_int()
@@ -176,6 +191,7 @@ class PreferencesNgDialog(Gtk.Dialog):
         self.config.gfwlist_url = self.gfw_url.get_text().strip()
 
         self.config.socks_listen_address = self.socks_addr.get_text().strip() or "127.0.0.1"
+        self.config.socks_allow_lan = self.socks_lan.get_active()
         self.config.profile.local_port = socks_port
         self.config.pac_bind_localhost = self.pac_local.get_active()
         self.config.pac_port = pac_port
@@ -186,6 +202,7 @@ class PreferencesNgDialog(Gtk.Dialog):
 
         self.config.http_enabled = self.http_enabled.get_active()
         self.config.http_listen_address = self.http_addr.get_text().strip() or "127.0.0.1"
+        self.config.http_allow_lan = self.http_lan.get_active()
         self.config.http_port = http_port
         self.config.abp_template_url = self.abp_url.get_text().strip()
         self.config.proxy_exceptions = self.exceptions.get_text().strip()

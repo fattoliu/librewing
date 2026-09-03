@@ -67,11 +67,13 @@ def test_advanced_preferences_are_persisted(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
     cfg = config.AppConfig(
         socks_listen_address="0.0.0.0",
+        socks_allow_lan=True,
         socks_timeout=90,
         udp_relay=False,
         verbose_mode=True,
         http_enabled=False,
         http_listen_address="0.0.0.0",
+        http_allow_lan=True,
         external_pac_url="https://example.com/proxy.pac",
     )
 
@@ -79,11 +81,13 @@ def test_advanced_preferences_are_persisted(tmp_path, monkeypatch):
     loaded = config.AppConfig.load()
 
     assert loaded.socks_listen_address == "0.0.0.0"
+    assert loaded.socks_allow_lan is True
     assert loaded.socks_timeout == 90
     assert loaded.udp_relay is False
     assert loaded.verbose_mode is True
     assert loaded.http_enabled is False
     assert loaded.http_listen_address == "0.0.0.0"
+    assert loaded.http_allow_lan is True
     assert loaded.external_pac_url == "https://example.com/proxy.pac"
 
 

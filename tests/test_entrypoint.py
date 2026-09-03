@@ -36,3 +36,11 @@ def test_beta_registers_unix_signal_cleanup_and_finally_guard():
     assert "_install_signal_handlers(app)" in beta
     assert "finally:" in beta
     assert "app.shutdown_runtime(quit_main=False)" in beta
+
+
+def test_beta_monitors_proxy_core_and_fails_closed():
+    beta = Path("ssxng/app_beta.py").read_text(encoding="utf-8")
+    assert "def _monitor_runtime(app)" in beta
+    assert "GLib.timeout_add_seconds" in beta
+    assert 'app.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in beta
+    assert "Proxy core stopped unexpectedly" in beta
