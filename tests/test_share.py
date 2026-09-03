@@ -1,3 +1,5 @@
+import pytest
+
 from ssxng.config import ServerProfile
 from ssxng.share import build_ss_url, parse_ss_url
 
@@ -31,3 +33,26 @@ def test_legacy_ss_url():
     assert profile.server == "1.2.3.4"
     assert profile.server_port == 8388
     assert profile.password == "secret"
+
+
+def test_ipv6_ss_url_roundtrip():
+    profile = ServerProfile(
+        name="IPv6",
+        server="2001:db8::1",
+        server_port=8388,
+        password="secret",
+        method="aes-256-gcm",
+    )
+
+    url = build_ss_url(profile)
+    restored = parse_ss_url(url)
+
+    assert "@[2001:db8::1]:8388" in url
+    assert restored == profile
+
+
+def test_invalid_profile_is_not_shared():
+    profile = ServerProfile(server="example.com", server_port=70000, password="secret")
+
+    with pytest.raises(ValueError, match="port"):
+        build_ss_url(profile)

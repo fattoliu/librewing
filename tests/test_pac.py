@@ -1,5 +1,7 @@
 import base64
 
+import pytest
+
 from ssxng import pac
 from ssxng.config import AppConfig, ServerProfile
 
@@ -99,3 +101,29 @@ def test_compact_pac_does_not_embed_legacy_abp_runtime(tmp_path, monkeypatch):
     assert "defaultMatcher" not in result
     assert "Filter.fromText" not in result
     assert "__RULES__" not in result
+
+
+def test_rule_updates_require_https_before_network_access(monkeypatch):
+    config = AppConfig(gfwlist_url="http://example.com/gfwlist.txt")
+    monkeypatch.setattr(pac, "_download", lambda *_args, **_kwargs: pytest.fail("must not download"))
+
+    with pytest.raises(ValueError, match="GFWList URL must be a valid HTTPS URL"):
+        pac.update_gfwlist(config)
+
+
+def test_rule_download_rejects_oversized_response(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _size):
+            return b"x" * (pac.MAX_RULE_DOWNLOAD_BYTES + 1)
+
+    monkeypatch.setattr(pac.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(pac.urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+
+    with pytest.raises(ValueError, match="too large"):
+        pac._download("https://example.com/rules")

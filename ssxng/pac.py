@@ -16,6 +16,14 @@ from urllib.parse import urlparse
 from .config import ABP_TEMPLATE_FILE, AppConfig, GFWLIST_FILE
 
 DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
+MAX_RULE_DOWNLOAD_BYTES = 16 * 1024 * 1024
+
+
+def _require_https_url(url: str, label: str) -> str:
+    parsed = urlparse(url.strip())
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise ValueError(f"{label} must be a valid HTTPS URL")
+    return parsed.geturl()
 
 
 def _local_proxy_available(port: int) -> bool:
@@ -49,6 +57,8 @@ def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> byt
                     "10",
                     "--max-time",
                     str(timeout),
+                    "--max-filesize",
+                    str(MAX_RULE_DOWNLOAD_BYTES),
                     "--retry",
                     "2",
                     "--retry-delay",
@@ -60,6 +70,8 @@ def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> byt
                 check=True,
                 capture_output=True,
             )
+            if len(completed.stdout) > MAX_RULE_DOWNLOAD_BYTES:
+                raise ValueError("Downloaded rule asset is too large")
             return completed.stdout
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             socks_error = exc
@@ -67,7 +79,10 @@ def _download(url: str, timeout: int = 20, socks_port: int | None = None) -> byt
     request = urllib.request.Request(url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.read()
+            data = response.read(MAX_RULE_DOWNLOAD_BYTES + 1)
+            if len(data) > MAX_RULE_DOWNLOAD_BYTES:
+                raise ValueError("Downloaded rule asset is too large")
+            return data
     except Exception as direct_error:
         if socks_error is not None:
             raise RuntimeError(
@@ -152,14 +167,16 @@ def merged_abp_rules(config: AppConfig) -> list[str]:
 
 def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     socks_port = config.profile.local_port
-    raw = _download(config.gfwlist_url, timeout=timeout, socks_port=socks_port)
+    gfwlist_url = _require_https_url(config.gfwlist_url, "GFWList URL")
+    template_url = _require_https_url(config.abp_template_url, "ABP template URL")
+    raw = _download(gfwlist_url, timeout=timeout, socks_port=socks_port)
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
     # Keep caching the upstream ShadowsocksX-NG template for compatibility and
     # future precise-rule work, although Linux serves a compact PAC at runtime.
-    template = _download(config.abp_template_url, timeout=timeout, socks_port=socks_port)
+    template = _download(template_url, timeout=timeout, socks_port=socks_port)
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
         raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
@@ -303,6 +320,7 @@ class PacServer:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ns-proxy-autoconfig")
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("X-ShadowsocksX-NG-Linux", "PAC")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
