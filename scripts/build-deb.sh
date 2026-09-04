@@ -156,7 +156,7 @@ bundle_simple_obfs
 
 declare -A ICONS=(
   [shadowsocksx-ng-linux]="menu_icon@2x.png"
-  [shadowsocksx-ng-linux-disabled]="menu_icon_disabled@2x.png"
+  [shadowsocksx-ng-linux-disabled]="menu_icon@2x.png"
   [shadowsocksx-ng-linux-pac]="menu_p_icon@2x.png"
   [shadowsocksx-ng-linux-global]="menu_g_icon@2x.png"
   [shadowsocksx-ng-linux-manual]="menu_m_icon@2x.png"
@@ -176,6 +176,10 @@ for icon_name in "${!ICONS[@]}"; do
   base64 --decode "$encoded" > "$decoded"
 
   case "$icon_name" in
+    shadowsocksx-ng-linux-disabled)
+      # Keep the off state distinct without disappearing into GNOME's dark panel.
+      python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 160 160 160
+      ;;
     shadowsocksx-ng-linux-pac|shadowsocksx-ng-linux-global|shadowsocksx-ng-linux-manual|shadowsocksx-ng-linux)
       python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 255 255 255
       ;;

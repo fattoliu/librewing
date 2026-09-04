@@ -50,6 +50,8 @@ and releases use Semantic Versioning.
 
 - StatusNotifier hosts can render bundled paper-plane and P/G/M icons from
   exported pixel data when desktop icon-theme lookup misses newly installed icons.
+- The off-state paper plane uses a legible medium gray instead of a low-opacity
+  dark asset that disappeared against GNOME's panel.
 
 ## [0.2.0] - 2026-08-26
 
