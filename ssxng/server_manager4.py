@@ -125,6 +125,7 @@ class ServerSettingsApp(Adw.Application):
         content.append(left)
 
         self.listbox = Gtk.ListBox()
+        self.listbox.update_property([Gtk.AccessibleProperty.LABEL], [tr("Servers")])
         self.listbox.add_css_class("navigation-sidebar")
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.connect("row-selected", self._on_row_selected)
@@ -147,10 +148,12 @@ class ServerSettingsApp(Adw.Application):
         add = Gtk.Button(icon_name="list-add-symbolic")
         add.add_css_class("flat")
         add.set_tooltip_text(tr("Add server"))
+        add.update_property([Gtk.AccessibleProperty.LABEL], [tr("Add server")])
         add.connect("clicked", self._on_add)
         remove = Gtk.Button(icon_name="list-remove-symbolic")
         remove.add_css_class("flat")
         remove.set_tooltip_text(tr("Remove selected server"))
+        remove.update_property([Gtk.AccessibleProperty.LABEL], [tr("Remove selected server")])
         remove.connect("clicked", self._on_remove)
         controls.append(add)
         controls.append(remove)
@@ -240,7 +243,8 @@ class ServerSettingsApp(Adw.Application):
         self.rows.clear()
         for profile in self.profiles:
             row = Gtk.ListBoxRow()
-            label = Gtk.Label(label=profile.name or "Default", xalign=0)
+            name = profile.name or "Default"
+            label = Gtk.Label(label=tr("Default") if name == "Default" else name, xalign=0)
             label.set_margin_top(10)
             label.set_margin_bottom(10)
             label.set_margin_start(12)

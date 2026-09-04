@@ -13,7 +13,7 @@ from gi.repository import Adw, Gtk  # noqa: E402
 
 from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig, LOG_FILE
-from .i18n import system_language, tr
+from .i18n import tr
 from .logs import clear_log
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
@@ -21,40 +21,6 @@ PAGE_PAD = 24
 ACTION_BOTTOM = 16
 GROUP_GAP = 20
 CONTROL_GAP = 12
-
-_EXTRA_I18N = {
-    "zh_CN": {
-        "General": "常规",
-        "Advanced": "高级",
-        "Network Interface": "网络接口",
-        "Import": "导入",
-        "Copy URL": "复制 URL",
-        "Proxy behavior": "代理行为",
-        "PAC service": "PAC 服务",
-        "HTTP service": "HTTP 服务",
-        "Network exceptions": "网络例外",
-        "Separate multiple hosts, domains, or networks with commas.": "多个主机、域名或网段请使用逗号分隔。",
-        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 和 HTTP 代理端口不能相同。",
-    },
-    "zh_TW": {
-        "General": "一般",
-        "Advanced": "進階",
-        "Network Interface": "網路介面",
-        "Import": "匯入",
-        "Copy URL": "複製 URL",
-        "Proxy behavior": "代理行為",
-        "PAC service": "PAC 服務",
-        "HTTP service": "HTTP 服務",
-        "Network exceptions": "網路例外",
-        "Separate multiple hosts, domains, or networks with commas.": "多個主機、網域或網段請使用逗號分隔。",
-        "SOCKS5, PAC and HTTP proxy ports must be different.": "SOCKS5、PAC 與 HTTP 代理連接埠不能相同。",
-    },
-}
-
-
-def _t(text: str) -> str:
-    return _EXTRA_I18N.get(system_language(), {}).get(text, tr(text))
-
 
 def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
     button = Gtk.Button(label=label)
@@ -171,10 +137,11 @@ class TextInputApp(Adw.Application):
         body.append(content)
         self.entry = Gtk.Entry()
         self.entry.set_placeholder_text(self.placeholder)
+        self.entry.update_property([Gtk.AccessibleProperty.LABEL], [self.placeholder])
         self.entry.set_hexpand(True)
         self.entry.connect("activate", self._save)
         content.append(self.entry)
-        body.append(_footer(self._cancel, _t("Import"), self._save))
+        body.append(_footer(self._cancel, tr("Import"), self._save))
         self.win.connect("close-request", self._close)
         self.win.present()
         self.entry.grab_focus()
@@ -253,10 +220,10 @@ class PreferencesApp(Adw.Application):
         tabs.set_margin_top(14)
         tabs.set_margin_bottom(4)
         tab_specs = [
-            (_t("General"), "preferences-system-symbolic", "general"),
-            (_t("Advanced"), "preferences-other-symbolic", "advanced"),
+            (tr("General"), "preferences-system-symbolic", "general"),
+            (tr("Advanced"), "preferences-other-symbolic", "advanced"),
             ("HTTP", "network-server-symbolic", "http"),
-            (_t("Network Interface"), "network-workgroup-symbolic", "network"),
+            (tr("Network Interface"), "network-workgroup-symbolic", "network"),
         ]
         first = None
         previous = None
@@ -278,7 +245,7 @@ class PreferencesApp(Adw.Application):
         self.win.present()
 
     def _general(self) -> Gtk.Widget:
-        behavior = self._group(_t("Proxy behavior"))
+        behavior = self._group(tr("Proxy behavior"))
         self.autostart = self._switch_row(tr("Start At Login"), autostart_enabled())
         self.show_mode = self._switch_row(
             tr("Show Running Proxy Mode In Status Bar"), self.config.show_mode_in_status_bar
@@ -289,7 +256,7 @@ class PreferencesApp(Adw.Application):
         behavior.add(self.gfw_enabled)
 
         gfw = self._group("GFWList")
-        self.gfw_url = self._entry_row("GFW List URL", self.config.gfwlist_url)
+        self.gfw_url = self._entry_row(tr("GFWList URL"), self.config.gfwlist_url)
         gfw.add(self.gfw_url)
         return self._page(behavior, gfw)
 
@@ -300,12 +267,12 @@ class PreferencesApp(Adw.Application):
         self.socks_lan.set_subtitle(tr("Warning: SOCKS5 clients are not authenticated."))
         self.socks_port = self._spin_row(tr("Local Socks5 Listen Port:"), self.config.profile.local_port, 1024)
         self.timeout = self._spin_row(tr("Timeout:"), self.config.socks_timeout, 1, 3600)
-        self.udp = self._switch_row(tr("Enable Udp Replay"), self.config.udp_relay)
+        self.udp = self._switch_row(tr("Enable UDP Relay"), self.config.udp_relay)
         self.verbose = self._switch_row(tr("Enable Verbose Mode"), self.config.verbose_mode)
         for row in (self.socks_addr, self.socks_lan, self.socks_port, self.timeout, self.udp, self.verbose):
             socks.add(row)
 
-        pac = self._group(_t("PAC service"))
+        pac = self._group(tr("PAC service"))
         self.pac_local = self._switch_row(tr("Local PAC Server Bind To Localhost"), self.config.pac_bind_localhost)
         self.pac_port = self._spin_row(tr("Local PAC Server Listen Port:"), self.config.pac_port, 1024)
         self.external_url = self._entry_row(tr("External PAC URL:"), self.config.external_pac_url)
@@ -314,7 +281,7 @@ class PreferencesApp(Adw.Application):
         return self._page(socks, pac)
 
     def _http(self) -> Gtk.Widget:
-        group = self._group(_t("HTTP service"))
+        group = self._group(tr("HTTP service"))
         self.http_enabled = self._switch_row(tr("HTTP Proxy Enable"), self.config.http_enabled)
         self.http_addr = self._entry_row(tr("HTTP Proxy Listen Address:"), self.config.http_listen_address)
         self.http_lan = self._switch_row(tr("Allow HTTP Proxy Connections From LAN"), self.config.http_allow_lan)
@@ -326,12 +293,12 @@ class PreferencesApp(Adw.Application):
         return self._page(group)
 
     def _network(self) -> Gtk.Widget:
-        group = self._group(_t("Network exceptions"))
+        group = self._group(tr("Network exceptions"))
         self.exceptions = self._entry_row(
             tr("Bypass proxy settings for these Hosts & Domains:"), self.config.proxy_exceptions
         )
         group.add(self.exceptions)
-        group.set_description(_t("Separate multiple hosts, domains, or networks with commas."))
+        group.set_description(tr("Separate multiple hosts, domains, or networks with commas."))
         return self._page(group)
 
     def _save(self, *_args) -> None:
@@ -352,7 +319,7 @@ class PreferencesApp(Adw.Application):
             pac = int(self.pac_port.get_value())
             http = int(self.http_port.get_value())
             if len({socks, pac, http}) != 3:
-                raise ValueError(_t("SOCKS5, PAC and HTTP proxy ports must be different."))
+                raise ValueError(tr("SOCKS5, PAC and HTTP proxy ports must be different."))
             c = self.config
             c.autostart = self.autostart.get_active()
             c.show_mode_in_status_bar = self.show_mode.get_active()
@@ -415,6 +382,7 @@ class RulesApp(Adw.Application):
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
         self.text = Gtk.TextView(monospace=True)
+        self.text.update_property([Gtk.AccessibleProperty.LABEL], [tr("PAC rules editor")])
         self.text.set_top_margin(12)
         self.text.set_bottom_margin(12)
         self.text.set_left_margin(12)
@@ -454,6 +422,7 @@ class LogsApp(Adw.Application):
         scroller.set_margin_start(PAGE_PAD)
         scroller.set_margin_end(PAGE_PAD)
         self.text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        self.text.update_property([Gtk.AccessibleProperty.LABEL], [tr("Proxy Logs")])
         self.text.set_top_margin(12)
         self.text.set_bottom_margin(12)
         self.text.set_left_margin(12)
@@ -505,6 +474,7 @@ class TextViewerApp(Adw.Application):
         scroller.set_margin_start(PAGE_PAD)
         scroller.set_margin_end(PAGE_PAD)
         text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        text.update_property([Gtk.AccessibleProperty.LABEL], [self.title])
         text.set_top_margin(12)
         text.set_bottom_margin(12)
         text.set_left_margin(12)
@@ -535,11 +505,13 @@ class ShareApp(Adw.Application):
         content.append(label)
         if self.qr_path and Path(self.qr_path).exists():
             picture = Gtk.Picture.new_for_filename(self.qr_path)
+            picture.set_alternative_text(tr("QR code for {name}", name=self.name))
             picture.set_can_shrink(True)
             picture.set_content_fit(Gtk.ContentFit.CONTAIN)
             picture.set_vexpand(True)
             content.append(picture)
         entry = Gtk.Entry(text=self.url, editable=False)
+        entry.update_property([Gtk.AccessibleProperty.LABEL], [tr("Server URL")])
         entry.set_hexpand(True)
         content.append(entry)
         body.append(content)
@@ -550,7 +522,7 @@ class ShareApp(Adw.Application):
         footer.set_margin_start(PAGE_PAD)
         footer.set_margin_end(PAGE_PAD)
         footer.append(_button(tr("Close"), lambda *_: self.quit()))
-        footer.append(_button(_t("Copy URL"), self._copy, suggested=True))
+        footer.append(_button(tr("Copy URL"), self._copy, suggested=True))
         body.append(footer)
         self.win = win
         win.present()
@@ -570,7 +542,7 @@ class AboutApp(Adw.Application):
             application_icon="shadowsocksx-ng-linux",
             developer_name="fattoliu",
             version="0.2.0",
-            comments="A practical Shadowsocks desktop client for Linux/Ubuntu",
+            comments=tr("A practical Shadowsocks desktop client for Linux/Ubuntu"),
             website="https://github.com/fattoliu/shadowsocksx-ng-linux",
             issue_url="https://github.com/fattoliu/shadowsocksx-ng-linux/issues",
             license_type=Gtk.License.GPL_3_0,

@@ -265,7 +265,7 @@ class AboutWindowApp(Adw.Application):
             application_icon="shadowsocksx-ng-linux",
             developer_name="fattoliu",
             version=__version__,
-            comments="A practical Shadowsocks desktop client for Linux/Ubuntu",
+            comments=tr("A practical Shadowsocks desktop client for Linux/Ubuntu"),
             website="https://github.com/fattoliu/shadowsocksx-ng-linux",
             issue_url="https://github.com/fattoliu/shadowsocksx-ng-linux/issues",
             license_type=Gtk.License.GPL_3_0,
