@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+import pytest
+
+from ssxng import plugins
+
+
+def test_resolve_empty_plugin():
+    assert plugins.resolve_plugin("") == ""
+
+
+def test_resolve_plugin_from_path(tmp_path):
+    executable = tmp_path / "obfs-local"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+    assert plugins.resolve_plugin(str(executable)) == str(executable)
+
+
+def test_resolve_plugin_rejects_non_executable(tmp_path):
+    plugin = tmp_path / "plugin"
+    plugin.write_text("x", encoding="utf-8")
+    plugin.chmod(0o644)
+    with pytest.raises(ValueError, match="not executable"):
+        plugins.resolve_plugin(str(plugin))
+
+
+def test_bundled_plugin_is_preferred_over_path(monkeypatch, tmp_path):
+    bundled_dir = tmp_path / "bin"
+    bundled_dir.mkdir()
+    bundled = bundled_dir / "obfs-local"
+    bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    bundled.chmod(0o755)
+
+    monkeypatch.setattr(plugins, "BUNDLED_BIN_DIR", bundled_dir)
+    monkeypatch.setattr(plugins.shutil, "which", lambda _name: "/usr/local/bin/obfs-local")
+
+    assert plugins.resolve_plugin("obfs-local") == str(bundled)
+    assert plugins.default_plugin_value() == "obfs-local"
+
+
+def test_discover_plugins(monkeypatch):
+    def fake_which(name: str):
+        return "/usr/local/bin/obfs-local" if name == "obfs-local" else None
+
+    monkeypatch.setattr(plugins.shutil, "which", fake_which)
+    result = plugins.discover_plugins(("obfs-local", "v2ray-plugin"))
+    assert result[0].available is True
+    assert result[0].path.endswith("obfs-local")
+    assert result[1].available is False
+    assert bool(result) is True
+    assert result.available_count == 1
+    assert result.items() == [("obfs-local", "/usr/local/bin/obfs-local")]
+
+
+def test_discover_plugins_false_when_none_available(monkeypatch):
+    monkeypatch.setattr(plugins.shutil, "which", lambda _name: None)
+    result = plugins.discover_plugins(("obfs-local", "v2ray-plugin"))
+    assert bool(result) is False
+    assert result.available_count == 0
+    assert result.items() == []

@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shadowsocksx-ng-linux"
+version = "0.3.0rc1"
+description = "A practical Shadowsocks desktop client for Linux/Ubuntu"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "fattoliu"}]
+keywords = ["shadowsocks", "linux", "ubuntu", "proxy", "pac", "gfwlist"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: X11 Applications :: GTK",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Internet :: Proxy Servers",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+]
+
+[project.urls]
+Repository = "https://github.com/fattoliu/shadowsocksx-ng-linux"
+Issues = "https://github.com/fattoliu/shadowsocksx-ng-linux/issues"
+Changelog = "https://github.com/fattoliu/shadowsocksx-ng-linux/blob/main/CHANGELOG.md"
+
+[project.scripts]
+ssx-ng-linux = "ssxng.launcher:main"
+ssx-ng-tool = "ssxng.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ssxng*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+
+[tool.coverage.run]
+branch = true
+source = ["ssxng"]
+omit = [
+  "ssxng/app_ng_features.py",
+  "ssxng/feedback_ui4.py",
+  "ssxng/modern_ui4.py",
+  "ssxng/server_manager4.py",
+  "ssxng/runtime_ng.py",
+  "ssxng/screen_qr.py",
+  "ssxng/server_json.py",
+  "ssxng/diagnostics.py",
+  "ssxng/launcher.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 70
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "raise NotImplementedError",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# I001 is deliberately left to formatters; B904/UP037 are style-only and do
+# not affect this GTK/system integration code. E501 is covered by line-length.
+ignore = ["E501", "I001", "B904", "UP037"]
+
+[tool.ruff.lint.per-file-ignores]
+# PyGObject requires gi.require_version() before importing gi.repository, which
+# necessarily puts the following project imports after executable statements.
+"ssxng/app_ng_features.py" = ["E402"]
+"ssxng/feedback_ui4.py" = ["E402"]
+"ssxng/modern_ui4.py" = ["E402"]
+"ssxng/server_manager4.py" = ["E402"]

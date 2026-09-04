@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit · Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Compile
+        run: python -m compileall -q ssxng
+      - name: Unit tests with branch coverage
+        run: pytest -q --cov=ssxng --cov-branch --cov-report=term-missing
+      - name: Lint
+        run: ruff check ssxng tests
+
+  desktop-smoke:
+    name: Ubuntu desktop import smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install desktop runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
+            gir1.2-dbusmenu-glib-0.4 libglib2.0-bin gsettings-desktop-schemas \
+            shadowsocks-libev qrencode zbar-tools xvfb xauth
+      - name: Import GTK4 application and CLI modules
+        run: |
+          /usr/bin/python3 -m compileall -q ssxng
+          PYTHONPATH=. /usr/bin/python3 -c 'import ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.cli; from ssxng.server_manager4 import CIPHERS; assert "aes-256-gcm" in CIPHERS and "chacha20-ietf-poly1305" in CIPHERS; print("GTK4 and StatusNotifier imports OK")'
+          dbus-run-session -- env PYTHONPATH=. /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); tray.close(); print("StatusNotifier export OK")'
+      - name: Verify required runtime commands
+        run: |
+          command -v ss-local
+          command -v gsettings
+          command -v qrencode
+          command -v zbarimg
+      - name: Exercise GNOME proxy settings in a disposable session
+        run: dbus-run-session -- env PYTHONPATH=. /usr/bin/python3 scripts/smoke-gnome-proxy.py
+      - name: Construct GTK4 windows on a virtual display
+        env:
+          PYTHONPATH: .
+        run: bash scripts/smoke-gtk4.sh
+
+  package-smoke:
+    name: Debian package smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+          bash scripts/build-deb.sh
+          DEB=$(ls dist/*.deb)
+          SOURCE_EPOCH=$(git show -s --format=%ct HEAD)
+          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
+          cp dist/*.deb /tmp/first-build.deb
+          cp dist/*.spdx.json /tmp/first-build.spdx.json
+          bash scripts/build-deb.sh
+          DEB=$(ls dist/*.deb)
+          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
+          cmp /tmp/first-build.deb dist/*.deb
+          cmp /tmp/first-build.spdx.json dist/*.spdx.json
+      - name: Inspect package metadata and payload
+        run: |
+          DEB=$(ls dist/*.deb)
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB"
+          dpkg-deb --contents "$DEB" | grep -q '/usr/bin/ssx-ng-linux$'
+          dpkg-deb --contents "$DEB" | grep -q '/usr/bin/ssx-ng-tool$'
+          dpkg-deb --contents "$DEB" | grep -q '/usr/lib/shadowsocksx-ng-linux/bin/obfs-local$'
+          dpkg-deb --contents "$DEB" | grep -q '/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop$'
+          dpkg-deb --contents "$DEB" | grep -q '/usr/share/metainfo/io.github.fattoliu.shadowsocksxng.metainfo.xml$'
+          dpkg-deb --contents "$DEB" | grep -q '/usr/share/doc/shadowsocksx-ng-linux/LICENSE$'
+          ! dpkg-deb --contents "$DEB" | grep -q '__pycache__'
+          dpkg-deb --field "$DEB" Depends | grep -q 'shadowsocks-libev'
+          dpkg-deb --field "$DEB" Depends | grep -q 'gir1.2-dbusmenu-glib-0.4'
+          python3 -c 'import glob,json; data=json.load(open(glob.glob("dist/*.spdx.json")[0])); assert data["spdxVersion"] == "SPDX-2.3" and data["packages"][0]["filesAnalyzed"]'
+          EXTRACTED=$(mktemp -d)
+          dpkg-deb --extract "$DEB" "$EXTRACTED"
+          desktop-file-validate "$EXTRACTED/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop"
+          appstreamcli validate --no-net "$EXTRACTED/usr/share/metainfo/io.github.fattoliu.shadowsocksxng.metainfo.xml"
+      - name: Install and execute packaged runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ./dist/*.deb
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          cd /tmp
+          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("installed GTK4 application imports OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
+          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null

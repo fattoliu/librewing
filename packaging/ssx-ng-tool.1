@@ -1,0 +1,43 @@
+.TH SSX-NG-TOOL 1 "September 2026" "ShadowsocksX-NG Linux 0.3.0-rc.1" "User Commands"
+.SH NAME
+ssx-ng-tool \- inspect and maintain ShadowsocksX-NG Linux
+.SH SYNOPSIS
+.B ssx-ng-tool
+.I command
+.RI [ options ]
+.SH COMMANDS
+.TP
+.B health
+Check required commands, configured listeners, and the active SIP003 plugin.
+.TP
+.B config-path
+Print the application configuration path.
+.TP
+.B log-path
+Print the proxy log path.
+.TP
+.B show-profile
+Print the active profile with its password redacted. Use
+.B --json
+for JSON output.
+.TP
+.B show-url --unsafe
+Print the credential-bearing ss:// URL for the active profile.
+.TP
+.BI "qr-export " output
+Export the active profile as a private PNG QR code.
+.TP
+.BI "qr-import " image
+Import the first ss:// QR code found in an image.
+.TP
+.BI "backup-export " output
+Export all settings and server profiles to an owner-only JSON file.
+.TP
+.BI "backup-import " input " --yes"
+Replace local settings from a backup after explicit confirmation.
+.SH SEE ALSO
+.BR ssx-ng-linux (1),
+.BR ss-local (1)
+.SH SECURITY
+Profile URLs, QR images, and backups contain server credentials. Do not publish
+them in issue reports or logs.
