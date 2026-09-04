@@ -15,6 +15,7 @@ from .autostart import is_enabled as autostart_enabled
 from .config import AppConfig, LOG_FILE
 from .i18n import tr
 from .logs import clear_log
+from . import __version__
 
 APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
 PAGE_PAD = 24
@@ -541,7 +542,7 @@ class AboutApp(Adw.Application):
             application_name="ShadowsocksX-NG Linux",
             application_icon="shadowsocksx-ng-linux",
             developer_name="fattoliu",
-            version="0.2.0",
+            version=__version__,
             comments=tr("A practical Shadowsocks desktop client for Linux/Ubuntu"),
             website="https://github.com/fattoliu/shadowsocksx-ng-linux",
             issue_url="https://github.com/fattoliu/shadowsocksx-ng-linux/issues",

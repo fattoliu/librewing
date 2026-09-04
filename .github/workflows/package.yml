@@ -25,14 +25,15 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build deb and SBOM
         id: artifacts
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+            VERSION="${VERSION/-/~}"
           else
-            VERSION="0.2.0+${GITHUB_SHA::7}"
+            VERSION="0.3.0~rc1+${GITHUB_SHA::7}"
           fi
           VERSION="$VERSION" ARCH="${{ matrix.arch }}" bash scripts/build-deb.sh
           DEB=$(ls dist/*.deb)
@@ -52,7 +53,7 @@ jobs:
         with:
           subject-path: ${{ steps.artifacts.outputs.deb }}
           sbom-path: ${{ steps.artifacts.outputs.sbom }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: shadowsocksx-ng-linux-${{ matrix.arch }}
           path: |
@@ -68,7 +69,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: shadowsocksx-ng-linux-*
           merge-multiple: true
@@ -77,8 +78,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          RELEASE_FLAGS=()
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            RELEASE_FLAGS+=(--prerelease)
+          fi
           gh release create "$GITHUB_REF_NAME" dist/*.deb dist/*.deb.sha256 \
             dist/*.spdx.json dist/*.spdx.json.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --title "ShadowsocksX-NG Linux $GITHUB_REF_NAME" \
-            --generate-notes
+            --generate-notes "${RELEASE_FLAGS[@]}"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VERSION:-0.2.0}"
+VERSION="${VERSION:-0.3.0~rc.1}"
 ARCH="${ARCH:-amd64}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 UBUNTU_SERIES="${UBUNTU_SERIES:-noble}"
