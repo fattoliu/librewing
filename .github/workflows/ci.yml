@@ -99,7 +99,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ./dist/*.deb
-          /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("installed GTK4 application imports OK")'
           dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); tray.close(); print("installed StatusNotifier export OK")'
