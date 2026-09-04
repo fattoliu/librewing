@@ -46,6 +46,9 @@ bash scripts/smoke-gtk4.sh
 
 Desktop and packaging changes should also be exercised on a clean supported
 Ubuntu VM or container. See [docs/releasing.md](docs/releasing.md).
+Compatibility changes must follow the maintained
+[platform support boundary](docs/platform-support.md); include the exact
+desktop, version, session type, and tray or portal backend in test results.
 
 ## Pull requests
 

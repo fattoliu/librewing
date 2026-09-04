@@ -16,7 +16,7 @@ body:
     id: ubuntu
     attributes:
       label: Ubuntu and desktop version
-      placeholder: Ubuntu 24.04, GNOME 46, X11 or Wayland
+      placeholder: Ubuntu 24.04, GNOME 46, Wayland, AppIndicator extension or portal backend
     validations:
       required: true
   - type: textarea
@@ -42,4 +42,3 @@ body:
     attributes:
       label: Redacted health output
       description: Output from ssx-ng-tool health; remove private data first.
-

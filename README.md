@@ -68,6 +68,11 @@ Supported release baseline: Ubuntu 24.04 or newer with GNOME, on amd64 or
 arm64. Other Debian-based distributions may work but are not currently part of
 the release test matrix.
 
+Non-GNOME desktops can use Manual Mode with application-level HTTP/SOCKS/PAC
+configuration, but automatic system-proxy integration is GNOME-only. Tray and
+screen-capture support depend on the desktop's StatusNotifier and portal
+implementations. See the [platform support matrix](docs/platform-support.md).
+
 Package installation and runtime imports are also smoke-tested against Ubuntu
 26.04's Python 3.14 desktop stack.
 
@@ -224,7 +229,7 @@ Before tagging a release, verify:
 4. GFWList success/failure behavior and user PAC rules.
 5. Normal Quit, `Ctrl+C`, duplicate launch and recovery after an unclean previous exit.
 6. Preferences persistence and start-at-login behavior.
-7. Dialog layout under light/dark themes and Simplified Chinese/English locales.
+7. Dialog layout, keyboard navigation, and accessible labels under light/dark themes and Simplified Chinese/Traditional Chinese/English locales.
 8. `ssx-ng-tool health` reports all configured listeners correctly.
 9. Clean-machine `.deb` install: `ss-local` is installed automatically and bundled `obfs-local` is executable without any manual prerequisite setup.
 
