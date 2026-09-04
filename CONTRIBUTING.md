@@ -21,7 +21,7 @@ The desktop UI requires Ubuntu/Debian system packages:
 ```bash
 sudo apt update
 sudo apt install -y \
-  python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+  python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
   gir1.2-dbusmenu-glib-0.4 libglib2.0-bin gsettings-desktop-schemas \
   shadowsocks-libev qrencode zbar-tools curl
 python3 -m pip install -e '.[dev]'

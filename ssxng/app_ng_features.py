@@ -16,8 +16,9 @@ import gi
 gi.require_version("Gio", "2.0")
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Dbusmenu", "0.4")
-from gi.repository import Dbusmenu, Gdk, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Dbusmenu, Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from .autostart import is_enabled as autostart_enabled
 from .autostart import set_enabled as set_autostart
@@ -52,7 +53,16 @@ _SNI_XML = """
   <property name="Id" type="s" access="read"/>
   <property name="Title" type="s" access="read"/>
   <property name="Status" type="s" access="read"/>
+  <property name="WindowId" type="i" access="read"/>
   <property name="IconName" type="s" access="read"/>
+  <property name="IconPixmap" type="a(iiay)" access="read"/>
+  <property name="IconAccessibleDesc" type="s" access="read"/>
+  <property name="OverlayIconName" type="s" access="read"/>
+  <property name="OverlayIconPixmap" type="a(iiay)" access="read"/>
+  <property name="AttentionIconName" type="s" access="read"/>
+  <property name="AttentionIconPixmap" type="a(iiay)" access="read"/>
+  <property name="AttentionAccessibleDesc" type="s" access="read"/>
+  <property name="AttentionMovieName" type="s" access="read"/>
   <property name="IconThemePath" type="s" access="read"/>
   <property name="Menu" type="o" access="read"/>
   <property name="ItemIsMenu" type="b" access="read"/>
@@ -109,11 +119,42 @@ class StatusNotifierItem:
     OBJECT_PATH = "/StatusNotifierItem"
     MENU_PATH = "/MenuBar"
 
+    @staticmethod
+    def _icon_pixmap(icon_name: str) -> GLib.Variant:
+        path = Path(TRAY_ICON_THEME_PATH) / "36x36/status" / f"{icon_name}.png"
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(path))
+        except GLib.Error:
+            return GLib.Variant("a(iiay)", [])
+
+        width = pixbuf.get_width()
+        height = pixbuf.get_height()
+        channels = pixbuf.get_n_channels()
+        rowstride = pixbuf.get_rowstride()
+        source = pixbuf.get_pixels()
+        argb = bytearray()
+        for y in range(height):
+            row = y * rowstride
+            for x in range(width):
+                offset = row + x * channels
+                red, green, blue = source[offset : offset + 3]
+                alpha = source[offset + 3] if channels == 4 else 255
+                argb.extend(
+                    (
+                        alpha,
+                        red * alpha // 255,
+                        green * alpha // 255,
+                        blue * alpha // 255,
+                    )
+                )
+        return GLib.Variant("a(iiay)", [(width, height, bytes(argb))])
+
     def __init__(self, app: NgTrayApp) -> None:
         self.app = app
         self.connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self.bus_name = f"{APP_ID}.StatusNotifierItem{os.getpid()}"
         self.icon_name = TRAY_ICONS["off"]
+        self._pixmaps: dict[str, GLib.Variant] = {}
         self.menu_server = Dbusmenu.Server.new(self.MENU_PATH)
         node = Gio.DBusNodeInfo.new_for_xml(_SNI_XML)
         interface = node.lookup_interface("org.kde.StatusNotifierItem")
@@ -139,12 +180,24 @@ class StatusNotifierItem:
         invocation.return_value(None)
 
     def _get_property(self, _connection, _sender, _path, _interface, name):
+        empty_pixmap = GLib.Variant("a(iiay)", [])
+        if self.icon_name not in self._pixmaps:
+            self._pixmaps[self.icon_name] = self._icon_pixmap(self.icon_name)
         values = {
             "Category": GLib.Variant("s", "SystemServices"),
             "Id": GLib.Variant("s", "shadowsocksx-ng-linux"),
             "Title": GLib.Variant("s", "ShadowsocksX-NG Linux"),
             "Status": GLib.Variant("s", "Active"),
+            "WindowId": GLib.Variant("i", 0),
             "IconName": GLib.Variant("s", self.icon_name),
+            "IconPixmap": self._pixmaps[self.icon_name],
+            "IconAccessibleDesc": GLib.Variant("s", "ShadowsocksX-NG Linux"),
+            "OverlayIconName": GLib.Variant("s", ""),
+            "OverlayIconPixmap": empty_pixmap,
+            "AttentionIconName": GLib.Variant("s", ""),
+            "AttentionIconPixmap": empty_pixmap,
+            "AttentionAccessibleDesc": GLib.Variant("s", ""),
+            "AttentionMovieName": GLib.Variant("s", ""),
             "IconThemePath": GLib.Variant("s", TRAY_ICON_THEME_PATH),
             "Menu": GLib.Variant("o", self.MENU_PATH),
             "ItemIsMenu": GLib.Variant("b", True),

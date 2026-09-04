@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
             gir1.2-dbusmenu-glib-0.4 libglib2.0-bin gsettings-desktop-schemas \
             shadowsocks-libev qrencode zbar-tools xvfb xauth
       - name: Import GTK4 application and CLI modules
@@ -102,6 +102,6 @@ jobs:
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("installed GTK4 application imports OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); tray.close(); print("installed StatusNotifier export OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
           ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
           timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null

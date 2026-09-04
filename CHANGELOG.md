@@ -46,6 +46,11 @@ and releases use Semantic Versioning.
 - Structured runtime supervision restarts PAC/HTTP services and reports
   failure/recovery transitions without repeated alerts.
 
+### Fixed
+
+- StatusNotifier hosts can render bundled paper-plane and P/G/M icons from
+  exported pixel data when desktop icon-theme lookup misses newly installed icons.
+
 ## [0.2.0] - 2026-08-26
 
 ### Added
