@@ -595,10 +595,16 @@ class NgTrayApp:
         display.get_clipboard().read_text_async(None, finish, None)
 
     def on_edit_rules(self) -> None:
-        if _ui4("rules").returncode == 0:
-            self._reload_config()
-            self.alert(tr("PAC rules saved. Changes are effective immediately."))
-        self.rebuild_menu()
+        try:
+            if _ui4("rules").returncode == 0:
+                self._reload_config()
+                if self.config.mode == "pac":
+                    self.proxy.pac_mode()
+                self.alert(tr("PAC rules saved. Changes are effective immediately."))
+        except Exception as exc:
+            self.alert(f"Failed to apply PAC rules:\n{exc}")
+        finally:
+            self.rebuild_menu()
 
     def on_update_gfwlist(self) -> None:
         try:
