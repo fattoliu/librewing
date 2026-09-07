@@ -114,3 +114,28 @@ jobs:
           dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
           ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
           timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
+
+  ubuntu-26-package-smoke:
+    name: Ubuntu 26.04 package smoke
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:resolute-20260811.1
+    steps:
+      - name: Prepare build environment
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git python3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and install package
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          bash scripts/build-deb.sh
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ./dist/*.deb
+      - name: Verify Python 3.14 desktop runtime
+        run: |
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version'
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          cd /tmp
+          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("Ubuntu 26.04 packaged desktop imports OK")'
+          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
