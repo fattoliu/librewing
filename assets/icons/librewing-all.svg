@@ -3,6 +3,5 @@
   <g transform="translate(1 31) scale(.027 .027)" fill="#fff">
     <path d="M247-167q-47-47-47-113v-327q-35-13-57.5-43.5T120-720q0-50 35-85t85-35q50 0 85 35t35 85q0 39-22.5 69.5T280-607v327q0 33 23.5 56.5T360-200q33 0 56.5-23.5T440-280v-400q0-66 47-113t113-47q66 0 113 47t47 113v327q35 13 57.5 43.5T840-240q0 50-35 85t-85 35q-50 0-85-35t-35-85q0-39 22.5-70t57.5-43v-327q0-33-23.5-56.5T600-760q-33 0-56.5 23.5T520-680v400q0 66-47 113t-113 47q-66 0-113-47Z"/>
   </g>
-  <circle cx="28" cy="28" r="7" fill="#d97706" stroke="#fff" stroke-width="1.5"/>
-  <text x="28" y="31.5" fill="#fff" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="middle">G</text>
+  <path d="M32 24.5c-.8-1-1.9-1.5-3.2-1.5-2.7 0-4.3 1.8-4.3 4.5s1.6 4.5 4.3 4.5c1.4 0 2.6-.4 3.2-1v-3h-3" fill="none" stroke="#fbbf24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"/>
 </svg>
