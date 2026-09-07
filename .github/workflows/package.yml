@@ -54,6 +54,20 @@ jobs:
           (cd dist && for artifact in *.deb *.spdx.json; do sha256sum "$artifact" > "$artifact.sha256"; done)
           echo "deb=$DEB" >> "$GITHUB_OUTPUT"
           echo "sbom=$(ls dist/*.spdx.json)" >> "$GITHUB_OUTPUT"
+      - name: Install and execute package
+        env:
+          DEB: ${{ steps.artifacts.outputs.deb }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "$DEB"
+          command -v ss-local
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          cd /tmp
+          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); assert tray._get_property(None, None, None, None, "IconPixmap").n_children() == 1; tray.close()'
+          ssx-ng-tool health
+          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
       - name: Attest build provenance
         if: startsWith(github.ref, 'refs/tags/v') && github.event.repository.visibility == 'public'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
