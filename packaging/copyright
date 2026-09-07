@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: ShadowsocksX-NG Linux
-Source: https://github.com/fattoliu/shadowsocksx-ng-linux
+Upstream-Name: LibreWing
+Source: https://github.com/fattoliu/librewing
 
 Files: *
 Copyright: 2026 fattoliu and contributors
@@ -23,7 +23,7 @@ License: GPL-3
  On Debian systems, the complete text of the GNU General Public License
  version 3 is available in /usr/share/common-licenses/GPL-3.
 
-Files: packaging/io.github.fattoliu.shadowsocksxng.metainfo.xml
+Files: packaging/io.github.fattoliu.librewing.metainfo.xml
 Copyright: 2026 fattoliu and contributors
 License: FSFAP
  Copying and distribution of this file, with or without modification, are

@@ -11,6 +11,9 @@ class BackupError(ValueError):
     pass
 
 
+BACKUP_FORMATS = frozenset({"librewing-backup", "shadowsocksx-ng-linux-backup"})
+
+
 def export_backup(config: AppConfig, output: Path) -> Path:
     """Export the complete client configuration, including credentials.
 
@@ -20,7 +23,7 @@ def export_backup(config: AppConfig, output: Path) -> Path:
     output = Path(output).expanduser()
     output.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "format": "shadowsocksx-ng-linux-backup",
+        "format": "librewing-backup",
         "version": 1,
         "config": asdict(config),
     }
@@ -35,8 +38,8 @@ def load_backup(path: Path) -> AppConfig:
     except (OSError, json.JSONDecodeError) as exc:
         raise BackupError(f"Unable to read backup: {exc}") from exc
 
-    if payload.get("format") != "shadowsocksx-ng-linux-backup":
-        raise BackupError("Not a ShadowsocksX-NG Linux backup file")
+    if payload.get("format") not in BACKUP_FORMATS:
+        raise BackupError("Not a LibreWing backup file")
     if payload.get("version") != 1:
         raise BackupError(f"Unsupported backup version: {payload.get('version')}")
 

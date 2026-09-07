@@ -51,7 +51,7 @@ def is_managed_orphan_ss_local(pid: int) -> bool:
     """Return True only for an orphaned ss-local started with our runtime file.
 
     Requiring the same uid, PPID 1, ss-local executable name, and the exact
-    ShadowsocksX-NG Linux runtime path avoids touching unrelated user proxies.
+    LibreWing runtime path avoids touching unrelated user proxies.
     """
     if pid <= 1 or not _same_uid(pid) or _ppid(pid) != 1:
         return False

@@ -68,7 +68,7 @@ def build_document(
 
     created = datetime.fromtimestamp(source_date_epoch, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     namespace = (
-        "https://github.com/fattoliu/shadowsocksx-ng-linux/spdx/"
+        "https://github.com/fattoliu/librewing/spdx/"
         f"{package_name}-{version}-{architecture}-{package_checksum}"
     )
     return {
@@ -79,7 +79,7 @@ def build_document(
         "documentNamespace": namespace,
         "creationInfo": {
             "created": created,
-            "creators": ["Tool: shadowsocksx-ng-linux-generate-sbom"],
+            "creators": ["Tool: librewing-generate-sbom"],
         },
         "packages": [
             {
@@ -90,7 +90,7 @@ def build_document(
                 "filesAnalyzed": True,
                 "licenseConcluded": "GPL-3.0-or-later",
                 "licenseDeclared": "GPL-3.0-or-later",
-                "copyrightText": "Copyright (c) ShadowsocksX-NG Linux contributors",
+                "copyrightText": "Copyright (c) LibreWing contributors",
                 "checksums": [{"algorithm": "SHA256", "checksumValue": package_checksum}],
                 "externalRefs": [
                     {

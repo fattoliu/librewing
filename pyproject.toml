@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "shadowsocksx-ng-linux"
-version = "1.0.0"
+name = "librewing"
+version = "1.1.0"
 description = "A practical Shadowsocks desktop client for Linux/Ubuntu"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ license = {text = "GPL-3.0-or-later"}
 authors = [{name = "fattoliu"}]
 keywords = ["shadowsocks", "linux", "ubuntu", "proxy", "pac", "gfwlist"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: X11 Applications :: GTK",
   "Intended Audience :: End Users/Desktop",
   "Operating System :: POSIX :: Linux",
@@ -34,11 +34,13 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/fattoliu/shadowsocksx-ng-linux"
-Issues = "https://github.com/fattoliu/shadowsocksx-ng-linux/issues"
-Changelog = "https://github.com/fattoliu/shadowsocksx-ng-linux/blob/main/CHANGELOG.md"
+Repository = "https://github.com/fattoliu/librewing"
+Issues = "https://github.com/fattoliu/librewing/issues"
+Changelog = "https://github.com/fattoliu/librewing/blob/main/CHANGELOG.md"
 
 [project.scripts]
+librewing = "ssxng.launcher:main"
+librewing-tool = "ssxng.cli:main"
 ssx-ng-linux = "ssxng.launcher:main"
 ssx-ng-tool = "ssxng.cli:main"
 

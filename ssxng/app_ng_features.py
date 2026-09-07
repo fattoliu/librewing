@@ -33,14 +33,14 @@ from .server_json import example_json, export_servers, load_servers
 from .share import build_ss_url, parse_ss_url
 from .supervisor import RuntimeEvent, RuntimeSupervisor
 
-APP_ID = "io.github.fattoliu.shadowsocksxng"
+APP_ID = "io.github.fattoliu.librewing"
 TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor"
 TRAY_ICONS = {
-    "off": "shadowsocksx-ng-linux-disabled",
-    "pac": "shadowsocksx-ng-linux-pac",
-    "external_pac": "shadowsocksx-ng-linux-pac",
-    "global": "shadowsocksx-ng-linux-global",
-    "manual": "shadowsocksx-ng-linux-manual",
+    "off": "librewing-disabled",
+    "pac": "librewing-pac",
+    "external_pac": "librewing-pac",
+    "global": "librewing-global",
+    "manual": "librewing-manual",
 }
 
 _SNI_XML = """
@@ -185,13 +185,13 @@ class StatusNotifierItem:
             self._pixmaps[self.icon_name] = self._icon_pixmap(self.icon_name)
         values = {
             "Category": GLib.Variant("s", "SystemServices"),
-            "Id": GLib.Variant("s", "shadowsocksx-ng-linux"),
-            "Title": GLib.Variant("s", "ShadowsocksX-NG Linux"),
+            "Id": GLib.Variant("s", "librewing"),
+            "Title": GLib.Variant("s", "LibreWing"),
             "Status": GLib.Variant("s", "Active"),
             "WindowId": GLib.Variant("i", 0),
             "IconName": GLib.Variant("s", self.icon_name),
             "IconPixmap": self._pixmaps[self.icon_name],
-            "IconAccessibleDesc": GLib.Variant("s", "ShadowsocksX-NG Linux"),
+            "IconAccessibleDesc": GLib.Variant("s", "LibreWing"),
             "OverlayIconName": GLib.Variant("s", ""),
             "OverlayIconPixmap": empty_pixmap,
             "AttentionIconName": GLib.Variant("s", ""),
@@ -300,7 +300,7 @@ class NgTrayApp:
     def update_indicator_icon(self) -> None:
         mode = self.config.mode if self.core.running() else "off"
         if mode != "off" and not self.config.show_mode_in_status_bar:
-            icon_name = "shadowsocksx-ng-linux"
+            icon_name = "librewing"
         else:
             icon_name = TRAY_ICONS.get(mode, TRAY_ICONS["off"])
         self.indicator.set_icon(icon_name)
@@ -505,7 +505,7 @@ class NgTrayApp:
             if _ui4("preferences").returncode != 0:
                 return
             self._reload_config()
-            set_autostart(self.config.autostart, shutil.which("ssx-ng-linux"))
+            set_autostart(self.config.autostart, shutil.which("librewing"))
             after_socks = (
                 self.config.socks_listen_address,
                 self.config.socks_allow_lan,
@@ -703,7 +703,7 @@ class NgTrayApp:
         profile = self.config.profile
         plugins = discover_plugins()
         return (
-            "ShadowsocksX-NG Linux diagnostics\n"
+            "LibreWing diagnostics\n"
             f"Generated: {datetime.now().astimezone().isoformat()}\n\n"
             f"Mode: {self.config.mode}\n"
             f"Server: {profile.name} ({profile.server}:{profile.server_port})\n"
@@ -731,10 +731,10 @@ class NgTrayApp:
             self.alert(str(exc))
 
     def on_check_updates(self) -> None:
-        webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux/releases")
+        webbrowser.open("https://github.com/fattoliu/librewing/releases")
 
     def on_help(self) -> None:
-        if not webbrowser.open("https://github.com/fattoliu/shadowsocksx-ng-linux"):
+        if not webbrowser.open("https://github.com/fattoliu/librewing"):
             self.alert(tr("Help text"))
 
     def monitor_runtime(self) -> bool:
@@ -804,7 +804,7 @@ def main() -> int:
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        print(f"ssx-ng-linux: {exc}", file=sys.stderr)
+        print(f"librewing: {exc}", file=sys.stderr)
         return 1
     finally:
         if app is not None:

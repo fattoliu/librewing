@@ -36,7 +36,7 @@ services remain separate from the UI helpers.
 
 ## Persistent state
 
-State lives in `~/.config/shadowsocksx-ng-linux`. The directory is mode `0700`;
+State lives in `~/.config/librewing`. The directory is mode `0700`;
 files containing credentials or operational details are mode `0600` and are
 replaced atomically.
 

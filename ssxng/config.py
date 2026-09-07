@@ -11,7 +11,9 @@ from typing import Any
 
 from .plugins import resolve_plugin
 
-APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
+DEFAULT_APP_DIR = Path.home() / ".config" / "librewing"
+LEGACY_APP_DIR = Path.home() / ".config" / "shadowsocksx-ng-linux"
+APP_DIR = DEFAULT_APP_DIR
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
 GFWLIST_FILE = APP_DIR / "gfwlist.txt"
@@ -33,6 +35,21 @@ def ensure_private_directory(path: Path) -> None:
     """Create a user-owned state directory and repair permissive modes."""
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(path, 0o700)
+
+
+def migrate_legacy_app_dir() -> bool:
+    """Move pre-LibreWing user state once without overwriting newer state."""
+    if (
+        APP_DIR != DEFAULT_APP_DIR
+        or APP_DIR.exists()
+        or LEGACY_APP_DIR.is_symlink()
+        or not LEGACY_APP_DIR.is_dir()
+    ):
+        return False
+    APP_DIR.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(LEGACY_APP_DIR, APP_DIR)
+    ensure_private_directory(APP_DIR)
+    return True
 
 
 def write_private_text(path: Path, content: str, *, private_parent: bool = False) -> None:
@@ -117,6 +134,7 @@ class AppConfig:
 
     @classmethod
     def load(cls) -> AppConfig:
+        migrate_legacy_app_dir()
         ensure_private_directory(APP_DIR)
         if not CONFIG_FILE.exists():
             cfg = cls()
@@ -134,7 +152,7 @@ class AppConfig:
             config_version = int(raw_version)
             if config_version > CURRENT_CONFIG_VERSION:
                 raise UnsupportedConfigVersion(
-                    f"Configuration version {config_version} requires a newer ShadowsocksX-NG Linux release"
+                    f"Configuration version {config_version} requires a newer LibreWing release"
                 )
             if config_version < 0:
                 raise ValueError("config_version must not be negative")

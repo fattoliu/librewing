@@ -21,7 +21,7 @@ def test_http_proxy(config: AppConfig, timeout: float = 8.0) -> tuple[int, float
     )
     request = urllib.request.Request(
         "https://www.google.com/generate_204",
-        headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"},
+        headers={"User-Agent": "LibreWing/0.2"},
     )
     start = time.perf_counter()
     with opener.open(request, timeout=timeout) as response:

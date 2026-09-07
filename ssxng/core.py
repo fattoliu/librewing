@@ -286,7 +286,7 @@ class HttpProxyCore:
             def error_response(self, status: bytes) -> None:
                 self.request.sendall(
                     b"HTTP/1.1 " + status + b"\r\n"
-                    b"Proxy-Agent: ShadowsocksX-NG-Linux\r\n"
+                    b"Proxy-Agent: LibreWing\r\n"
                     b"Connection: close\r\n\r\n"
                 )
 
@@ -318,7 +318,7 @@ class HttpProxyCore:
                         host, port = _split_host_port(target, 443)
                         remote = _socks5_connect(socks_host, config.profile.local_port, host, port)
                         try:
-                            client.sendall(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: ShadowsocksX-NG-Linux\r\n\r\n")
+                            client.sendall(b"HTTP/1.1 200 Connection Established\r\nProxy-Agent: LibreWing\r\n\r\n")
                             if body_prefix:
                                 remote.sendall(body_prefix)
                             client.settimeout(None)

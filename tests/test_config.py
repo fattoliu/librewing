@@ -21,6 +21,27 @@ def test_load_recovers_from_invalid_json(tmp_path, monkeypatch):
     assert backups[0].read_text(encoding="utf-8") == "{not-json"
 
 
+def test_load_migrates_legacy_brand_directory(tmp_path, monkeypatch):
+    legacy = tmp_path / "shadowsocksx-ng-linux"
+    current = tmp_path / "librewing"
+    legacy.mkdir()
+    (legacy / "config.json").write_text(
+        json.dumps({"mode": "manual", "profiles": [{"name": "Migrated"}]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "DEFAULT_APP_DIR", current)
+    monkeypatch.setattr(config, "APP_DIR", current)
+    monkeypatch.setattr(config, "LEGACY_APP_DIR", legacy)
+    monkeypatch.setattr(config, "CONFIG_FILE", current / "config.json")
+
+    loaded = config.AppConfig.load()
+
+    assert loaded.mode == "manual"
+    assert loaded.profile.name == "Migrated"
+    assert current.is_dir()
+    assert not legacy.exists()
+
+
 def test_save_replaces_config_atomically(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "APP_DIR", tmp_path)
     monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")

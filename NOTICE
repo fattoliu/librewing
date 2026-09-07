@@ -1,4 +1,4 @@
-ShadowsocksX-NG Linux
+LibreWing
 Copyright (C) 2026 fattoliu and contributors
 
 This project is licensed under GPL-3.0-or-later. See LICENSE.
@@ -20,6 +20,6 @@ Release packages may contain the obfs-local executable from simple-obfs:
 https://github.com/shadowsocks/simple-obfs
 
 The Debian build copies the accompanying copyright metadata into
-/usr/share/doc/shadowsocksx-ng-linux/simple-obfs-copyright. The exact source
+/usr/share/doc/librewing/simple-obfs-copyright. The exact source
 package version and SHA-256 values are pinned in scripts/build-deb.sh.
 

@@ -15,8 +15,8 @@ from .share import build_ss_url
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="ssx-ng-tool",
-        description="Diagnostics and maintenance utility for ShadowsocksX-NG Linux.",
+        prog="librewing-tool",
+        description="Diagnostics and maintenance utility for LibreWing.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

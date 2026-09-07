@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-BUNDLED_BIN_DIR = Path("/usr/lib/shadowsocksx-ng-linux/bin")
+BUNDLED_BIN_DIR = Path("/usr/lib/librewing/bin")
 KNOWN_PLUGINS = (
     "obfs-local",
     "v2ray-plugin",
@@ -71,7 +71,7 @@ def resolve_plugin(value: str) -> str:
     """Resolve a SIP003 plugin name or absolute path to an executable.
 
     Empty plugin values are allowed and resolve to an empty string. Bare command
-    names first resolve against binaries bundled with ShadowsocksX-NG Linux, then
+    names first resolve against binaries bundled with LibreWing, then
     against PATH. Relative paths containing a slash are rejected because desktop
     launch working directories are not stable.
     """

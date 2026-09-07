@@ -18,7 +18,7 @@ def main() -> int:
 
             return app_main()
     except AlreadyRunningError as exc:
-        print(f"ssx-ng-linux: {exc}", file=sys.stderr)
+        print(f"librewing: {exc}", file=sys.stderr)
         return 3
 
 

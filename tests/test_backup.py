@@ -43,14 +43,33 @@ def test_export_does_not_change_existing_parent_permissions(tmp_path):
 def test_rejects_unknown_backup_format(tmp_path):
     path = tmp_path / "bad.json"
     path.write_text(json.dumps({"format": "other", "version": 1, "config": {}}), encoding="utf-8")
-    with pytest.raises(BackupError, match="Not a ShadowsocksX-NG Linux backup"):
+    with pytest.raises(BackupError, match="Not a LibreWing backup"):
         load_backup(path)
+
+
+def test_loads_pre_librewing_backup_format(tmp_path):
+    path = tmp_path / "legacy.json"
+    path.write_text(
+        json.dumps(
+            {
+                "format": "shadowsocksx-ng-linux-backup",
+                "version": 1,
+                "config": {"mode": "manual", "profiles": [{"name": "Legacy"}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_backup(path)
+
+    assert loaded.mode == "manual"
+    assert loaded.profile.name == "Legacy"
 
 
 def test_rejects_empty_profiles(tmp_path):
     path = tmp_path / "bad.json"
     path.write_text(
-        json.dumps({"format": "shadowsocksx-ng-linux-backup", "version": 1, "config": {"profiles": []}}),
+        json.dumps({"format": "librewing-backup", "version": 1, "config": {"profiles": []}}),
         encoding="utf-8",
     )
     with pytest.raises(BackupError, match="at least one server profile"):
@@ -62,7 +81,7 @@ def test_rejects_invalid_backup_preferences(tmp_path):
     path.write_text(
         json.dumps(
             {
-                "format": "shadowsocksx-ng-linux-backup",
+                "format": "librewing-backup",
                 "version": 1,
                 "config": {"mode": "unknown", "profiles": [{"name": "A"}]},
             }

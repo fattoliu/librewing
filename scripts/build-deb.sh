@@ -33,11 +33,11 @@ if [[ ! "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]]; then
 fi
 export SOURCE_DATE_EPOCH
 
-PKG="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}"
-OUT="$ROOT/dist/shadowsocksx-ng-linux_${VERSION}_${ARCH}.deb"
+PKG="$ROOT/dist/librewing_${VERSION}_${ARCH}"
+OUT="$ROOT/dist/librewing_${VERSION}_${ARCH}.deb"
 ICON_ASSETS="$ROOT/assets/upstream"
 ICON_OUT="$PKG/usr/share/icons/hicolor/36x36/status"
-APP_LIB="$PKG/usr/lib/shadowsocksx-ng-linux"
+APP_LIB="$PKG/usr/lib/librewing"
 APP_BIN="$APP_LIB/bin"
 
 cleanup() {
@@ -54,23 +54,23 @@ mkdir -p \
   "$PKG/usr/share/applications" \
   "$PKG/usr/share/man/man1" \
   "$PKG/usr/share/metainfo" \
-  "$PKG/usr/share/doc/shadowsocksx-ng-linux" \
+  "$PKG/usr/share/doc/librewing" \
   "$ICON_OUT"
 
 cp -R "$ROOT/ssxng" "$APP_LIB/"
 find "$APP_LIB/ssxng" -type d -name __pycache__ -prune -exec rm -rf -- {} +
 find "$APP_LIB/ssxng" -type f -name '*.pyc' -delete
 cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$ROOT/NOTICE" "$ROOT/LICENSE" \
-  "$PKG/usr/share/doc/shadowsocksx-ng-linux/"
-cp "$ROOT/packaging/copyright" "$PKG/usr/share/doc/shadowsocksx-ng-linux/copyright"
-cp "$ROOT/packaging/io.github.fattoliu.shadowsocksxng.metainfo.xml" "$PKG/usr/share/metainfo/"
+  "$PKG/usr/share/doc/librewing/"
+cp "$ROOT/packaging/copyright" "$PKG/usr/share/doc/librewing/copyright"
+cp "$ROOT/packaging/io.github.fattoliu.librewing.metainfo.xml" "$PKG/usr/share/metainfo/"
 {
-  printf 'shadowsocksx-ng-linux (%s) noble; urgency=medium\n\n' "$VERSION"
-  printf '  * See /usr/share/doc/shadowsocksx-ng-linux/CHANGELOG.md for release details.\n\n'
+  printf 'librewing (%s) noble; urgency=medium\n\n' "$VERSION"
+  printf '  * See /usr/share/doc/librewing/CHANGELOG.md for release details.\n\n'
   printf ' -- fattoliu <724684054@qq.com>  %s\n' "$(date -u -d "@$SOURCE_DATE_EPOCH" -R)"
-} | gzip -9n > "$PKG/usr/share/doc/shadowsocksx-ng-linux/changelog.gz"
-gzip -9n -c "$ROOT/packaging/ssx-ng-linux.1" > "$PKG/usr/share/man/man1/ssx-ng-linux.1.gz"
-gzip -9n -c "$ROOT/packaging/ssx-ng-tool.1" > "$PKG/usr/share/man/man1/ssx-ng-tool.1.gz"
+} | gzip -9n > "$PKG/usr/share/doc/librewing/changelog.gz"
+gzip -9n -c "$ROOT/packaging/librewing.1" > "$PKG/usr/share/man/man1/librewing.1.gz"
+gzip -9n -c "$ROOT/packaging/librewing-tool.1" > "$PKG/usr/share/man/man1/librewing-tool.1.gz"
 
 bundle_simple_obfs() {
   [ "$BUNDLE_SIMPLE_OBFS" = "1" ] || return 0
@@ -145,7 +145,7 @@ bundle_simple_obfs() {
   local copyright
   copyright="$(find "$tmp/root/usr/share/doc" -maxdepth 2 -name copyright -print -quit 2>/dev/null || true)"
   if [ -n "$copyright" ]; then
-    cp "$copyright" "$PKG/usr/share/doc/shadowsocksx-ng-linux/simple-obfs-copyright"
+    cp "$copyright" "$PKG/usr/share/doc/librewing/simple-obfs-copyright"
   fi
 
   rm -rf "$tmp"
@@ -155,11 +155,11 @@ bundle_simple_obfs() {
 bundle_simple_obfs
 
 declare -A ICONS=(
-  [shadowsocksx-ng-linux]="menu_icon@2x.png"
-  [shadowsocksx-ng-linux-disabled]="menu_icon@2x.png"
-  [shadowsocksx-ng-linux-pac]="menu_p_icon@2x.png"
-  [shadowsocksx-ng-linux-global]="menu_g_icon@2x.png"
-  [shadowsocksx-ng-linux-manual]="menu_m_icon@2x.png"
+  [librewing]="menu_icon@2x.png"
+  [librewing-disabled]="menu_icon@2x.png"
+  [librewing-pac]="menu_p_icon@2x.png"
+  [librewing-global]="menu_g_icon@2x.png"
+  [librewing-manual]="menu_m_icon@2x.png"
 )
 
 for icon_name in "${!ICONS[@]}"; do
@@ -176,11 +176,11 @@ for icon_name in "${!ICONS[@]}"; do
   base64 --decode "$encoded" > "$decoded"
 
   case "$icon_name" in
-    shadowsocksx-ng-linux-disabled)
+    librewing-disabled)
       # Keep the off state distinct without disappearing into GNOME's dark panel.
       python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 160 160 160
       ;;
-    shadowsocksx-ng-linux-pac|shadowsocksx-ng-linux-global|shadowsocksx-ng-linux-manual|shadowsocksx-ng-linux)
+    librewing-pac|librewing-global|librewing-manual|librewing)
       python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 255 255 255
       ;;
     *)
@@ -190,32 +190,36 @@ for icon_name in "${!ICONS[@]}"; do
   rm -f "$decoded"
 done
 
-cat > "$PKG/usr/bin/ssx-ng-linux" <<'EOF'
+cat > "$PKG/usr/bin/librewing" <<'EOF'
 #!/usr/bin/env bash
-export PYTHONPATH="/usr/lib/shadowsocksx-ng-linux${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="/usr/lib/librewing${PYTHONPATH:+:$PYTHONPATH}"
 exec python3 -m ssxng.launcher "$@"
 EOF
-chmod 755 "$PKG/usr/bin/ssx-ng-linux"
+chmod 755 "$PKG/usr/bin/librewing"
 
-cat > "$PKG/usr/bin/ssx-ng-tool" <<'EOF'
+cat > "$PKG/usr/bin/librewing-tool" <<'EOF'
 #!/usr/bin/env bash
-export PYTHONPATH="/usr/lib/shadowsocksx-ng-linux${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="/usr/lib/librewing${PYTHONPATH:+:$PYTHONPATH}"
 exec python3 -m ssxng.cli "$@"
 EOF
-chmod 755 "$PKG/usr/bin/ssx-ng-tool"
+chmod 755 "$PKG/usr/bin/librewing-tool"
 
-cat > "$PKG/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop" <<'EOF'
+# Keep command compatibility for existing scripts during the brand migration.
+ln -s librewing "$PKG/usr/bin/ssx-ng-linux"
+ln -s librewing-tool "$PKG/usr/bin/ssx-ng-tool"
+
+cat > "$PKG/usr/share/applications/io.github.fattoliu.librewing.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=ShadowsocksX-NG Linux
+Name=LibreWing
 Comment=Shadowsocks desktop proxy client
-Exec=ssx-ng-linux
+Exec=librewing
 Icon=network-vpn-symbolic
 Terminal=false
 Categories=Network;
 StartupNotify=false
 EOF
-chmod 644 "$PKG/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop"
+chmod 644 "$PKG/usr/share/applications/io.github.fattoliu.librewing.desktop"
 
 cat > "$PKG/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
@@ -248,13 +252,16 @@ EOF
 chmod 755 "$PKG/DEBIAN/postrm"
 
 cat > "$PKG/DEBIAN/control" <<EOF
-Package: shadowsocksx-ng-linux
+Package: librewing
 Version: $VERSION
 Section: net
 Priority: optional
 Architecture: $ARCH
 Maintainer: fattoliu <724684054@qq.com>
-Homepage: https://github.com/fattoliu/shadowsocksx-ng-linux
+Homepage: https://github.com/fattoliu/librewing
+Provides: shadowsocksx-ng-linux
+Conflicts: shadowsocksx-ng-linux
+Replaces: shadowsocksx-ng-linux
 Depends: libc6, python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gir1.2-gdkpixbuf-2.0, gir1.2-dbusmenu-glib-0.4, libdbusmenu-glib4, libglib2.0-bin, gsettings-desktop-schemas, shadowsocks-libev, libcap2-bin, libcork16, libev4, qrencode, zbar-tools, curl
 Recommends: shadowsocks-v2ray-plugin
 Suggests: gnome-shell-extension-appindicator

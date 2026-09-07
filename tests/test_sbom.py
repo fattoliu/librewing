@@ -16,7 +16,7 @@ def test_spdx_document_is_deterministic_and_describes_all_files(tmp_path):
     (root / "usr/share/doc").mkdir(parents=True)
     (root / "usr/share/doc/LICENSE").write_bytes(b"GPL")
     args = {
-        "package_name": "shadowsocksx-ng-linux",
+        "package_name": "librewing",
         "version": "1.2.3",
         "architecture": "amd64",
         "package_checksum": "a" * 64,

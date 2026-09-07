@@ -41,4 +41,4 @@ body:
     id: health
     attributes:
       label: Redacted health output
-      description: Output from ssx-ng-tool health; remove private data first.
+      description: Output from librewing-tool health; remove private data first.

@@ -1,12 +1,15 @@
-# ShadowsocksX-NG Linux
+# LibreWing
 
-[![CI](https://github.com/fattoliu/shadowsocksx-ng-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/fattoliu/shadowsocksx-ng-linux/actions/workflows/ci.yml)
+[![CI](https://github.com/fattoliu/librewing/actions/workflows/ci.yml/badge.svg)](https://github.com/fattoliu/librewing/actions/workflows/ci.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
 
 A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG), with a tray-first workflow and GNOME integration.
 
 The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
+
+LibreWing is an independent community project. It does not provide proxy
+servers, VPS hosting, subscriptions, accounts, or network access services.
 
 > **Project status:** stable. Ubuntu 24.04 or newer with GNOME is officially
 > supported on amd64 and arm64. See [ROADMAP.md](ROADMAP.md).
@@ -31,7 +34,7 @@ The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plu
 - Logs, diagnostics export, update/help links
 - Native `.deb` package with automatic `shadowsocks-libev` dependency installation
 - Bundled `obfs-local` runtime for simple-obfs server profiles
-- Health-check CLI via `ssx-ng-tool health`
+- Health-check CLI via `librewing-tool health`
 - GitHub Actions unit, desktop-import and Debian-package smoke tests
 
 ## Architecture
@@ -76,39 +79,46 @@ Package installation and runtime imports are also smoke-tested against Ubuntu
 26.04's Python 3.14 desktop stack.
 
 For a published version, download the package for your architecture from
-[GitHub Releases](https://github.com/fattoliu/shadowsocksx-ng-linux/releases),
+[GitHub Releases](https://github.com/fattoliu/librewing/releases),
 then install it with dependency resolution:
 
 ```bash
-sudo apt install ./shadowsocksx-ng-linux_VERSION_ARCH.deb
+sudo apt install ./librewing_VERSION_ARCH.deb
 ```
 
 For source builds:
 
 ```bash
-git clone https://github.com/fattoliu/shadowsocksx-ng-linux.git
-cd shadowsocksx-ng-linux
+git clone https://github.com/fattoliu/librewing.git
+cd librewing
 bash scripts/install-ubuntu.sh
 ```
 
 Run the installed native package entrypoint:
 
 ```bash
-ssx-ng-linux
+librewing
 ```
 
 Useful diagnostics:
 
 ```bash
-ssx-ng-tool health
+librewing-tool health
 ```
 
-The Debian package installs the desktop client into `/usr/bin` and its Python modules under `/usr/lib/shadowsocksx-ng-linux`.
+### Upgrading from ShadowsocksX-NG Linux 1.0
+
+Installing LibreWing replaces the former Debian package without deleting user
+settings. On first launch, `~/.config/shadowsocksx-ng-linux` moves to
+`~/.config/librewing`. Existing backups, autostart entries, and the legacy
+`ssx-ng-linux` / `ssx-ng-tool` commands remain compatible.
+
+The Debian package installs the desktop client into `/usr/bin` and its Python modules under `/usr/lib/librewing`.
 
 Users do **not** need to install `shadowsocks-libev` or `simple-obfs` manually before using the application:
 
 - `shadowsocks-libev` is declared as a Debian dependency, so `apt` installs `ss-local` automatically.
-- `obfs-local` is shipped inside the application package at `/usr/lib/shadowsocksx-ng-linux/bin/obfs-local`.
+- `obfs-local` is shipped inside the application package at `/usr/lib/librewing/bin/obfs-local`.
 - A server profile can simply use `obfs-local` as its plugin value; the application resolves the bundled executable before looking in the system `PATH`.
 
 Example:
@@ -232,7 +242,7 @@ Before tagging a release, verify:
 5. Normal Quit, `Ctrl+C`, duplicate launch and recovery after an unclean previous exit.
 6. Preferences persistence and start-at-login behavior.
 7. Dialog layout, keyboard navigation, and accessible labels under light/dark themes and Simplified Chinese/Traditional Chinese/English locales.
-8. `ssx-ng-tool health` reports all configured listeners correctly.
+8. `librewing-tool health` reports all configured listeners correctly.
 9. Clean-machine `.deb` install: `ss-local` is installed automatically and bundled `obfs-local` is executable without any manual prerequisite setup.
 
 ## License

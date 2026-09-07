@@ -103,14 +103,14 @@ def test_service_port_accepts_identified_listener(monkeypatch):
             pass
 
         def recv(self, _size):
-            return b"HTTP/1.1 502 Bad Gateway\r\nProxy-Agent: ShadowsocksX-NG-Linux\r\n\r\n"
+            return b"HTTP/1.1 502 Bad Gateway\r\nProxy-Agent: LibreWing\r\n\r\n"
 
     monkeypatch.setattr(health.socket, "create_connection", lambda *_args, **_kwargs: FakeConnection())
 
     result = health._http_proxy_port("HTTP proxy port", 1087)
 
     assert result.ok is True
-    assert "ShadowsocksX-NG Linux" in result.detail
+    assert "LibreWing" in result.detail
 
 
 def test_service_port_rejects_unrecognized_listener(monkeypatch):

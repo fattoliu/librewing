@@ -88,7 +88,7 @@ def _download(
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             socks_error = exc
 
-    request = urllib.request.Request(url, headers={"User-Agent": "ShadowsocksX-NG-Linux/0.2"})
+    request = urllib.request.Request(url, headers={"User-Agent": "LibreWing/0.2"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             data = response.read(MAX_RULE_DOWNLOAD_BYTES + 1)
@@ -271,7 +271,7 @@ def build_pac(config: AppConfig) -> str:
     proxy_json = json.dumps(sorted(proxy_domains), ensure_ascii=False, separators=(",", ":"))
     direct_json = json.dumps(sorted(direct_domains), ensure_ascii=False, separators=(",", ":"))
     proxy = _socks5(config)
-    return f'''// ShadowsocksX-NG Linux compact PAC
+    return f'''// LibreWing compact PAC
 var proxyDomains = {proxy_json};
 var directDomains = {direct_json};
 
@@ -339,7 +339,7 @@ class PacServer:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ns-proxy-autoconfig")
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-                self.send_header("X-ShadowsocksX-NG-Linux", "PAC")
+                self.send_header("X-LibreWing", "PAC")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
