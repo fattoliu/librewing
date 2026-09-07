@@ -19,9 +19,9 @@
 8. Review `scripts/build-deb.sh` artifact URLs and SHA-256 values. Changing a
    URL requires an independently verified new checksum.
 9. Merge only with all required CI checks green.
-10. Create an annotated, signed `vMAJOR.MINOR.PATCH[-PRERELEASE]` tag from the
-    default branch and push it. The package workflow publishes GitHub Release
-    assets and marks prerelease tags accordingly.
+10. Create an annotated `vMAJOR.MINOR.PATCH[-PRERELEASE]` tag from the default
+    branch and push it. The package workflow publishes GitHub Release assets,
+    signs their provenance/SBOM attestations, and marks prerelease tags accordingly.
 11. Download the published assets, verify architecture, SBOMs, and checksums, and
    perform one final clean-machine installation.
 

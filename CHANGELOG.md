@@ -5,6 +5,19 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0-rc.2] - 2026-09-07
+
+### Changed
+
+- Pull requests run one CI suite instead of duplicate push and pull-request runs.
+
+### Fixed
+
+- Editing custom PAC rules now changes the PAC URL revision immediately, avoiding
+  stale GNOME/Chromium cache without restarting `ss-local`.
+- Custom PAC rules can be disabled without deletion by using the documented
+  `! disabled:` prefix.
+
 ## [0.3.0-rc.1] - 2026-09-07
 
 ### Added
