@@ -245,15 +245,31 @@ Before tagging a release, verify:
 8. `librewing-tool health` reports all configured listeners correctly.
 9. Clean-machine `.deb` install: `ss-local` is installed automatically and bundled `obfs-local` is executable without any manual prerequisite setup.
 
+## Support development
+
+If LibreWing has made your day a little easier, you can buy me a coffee ☕.
+A star, useful feedback, or a code contribution is equally appreciated.
+
+如果 LibreWing 帮你省了一点时间，欢迎请我喝杯咖啡 ☕。Star、反馈和代码贡献也同样珍贵。
+
+<table>
+  <tr>
+    <th>Alipay / 支付宝</th>
+    <th>WeChat Pay / 微信支付</th>
+  </tr>
+  <tr>
+    <td><img src="assets/sponsor/alipay.jpg" alt="Alipay sponsorship QR code" width="260"></td>
+    <td><img src="assets/sponsor/wechat-pay.jpg" alt="WeChat Pay sponsorship QR code" width="260"></td>
+  </tr>
+</table>
+
+<sub>Voluntary support only. No proxy servers, VPS hosting, subscriptions,
+accounts, network access, paid features, or priority support are provided.<br>
+仅为自愿赞助，不提供代理服务、服务器、VPS、订阅、账号、网络访问、付费功能或优先支持；收款由维护者依法处理。</sub>
+
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete license and
 [NOTICE](NOTICE) for upstream assets and bundled third-party software.
 
 This project is not an official Shadowsocks project.
-
-## Support development
-
-LibreWing remains free software. Optional sponsorship funds development and
-does not provide proxy services, servers, subscriptions, access rights, paid
-features, or priority support. See [SPONSORS.md](SPONSORS.md).
