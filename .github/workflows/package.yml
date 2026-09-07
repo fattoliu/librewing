@@ -59,7 +59,7 @@ jobs:
           DEB: ${{ steps.artifacts.outputs.deb }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends "$DEB"
+          sudo apt-get install -y --no-install-recommends "$GITHUB_WORKSPACE/$DEB"
           command -v ss-local
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
           cd /tmp
