@@ -31,9 +31,13 @@ jobs:
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
-            VERSION="${VERSION/-/~}"
+            VERSION_BASE="${VERSION%%-*}"
+            VERSION_PRERELEASE="${VERSION#*-}"
+            if [[ "$VERSION_PRERELEASE" != "$VERSION" ]]; then
+              VERSION="${VERSION_BASE}~${VERSION_PRERELEASE}"
+            fi
           else
-            VERSION="0.3.0~rc1+${GITHUB_SHA::7}"
+            VERSION="0.3.0~rc.1+${GITHUB_SHA::7}"
           fi
           VERSION="$VERSION" ARCH="${{ matrix.arch }}" bash scripts/build-deb.sh
           DEB=$(ls dist/*.deb)
