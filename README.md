@@ -8,9 +8,8 @@ A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/s
 
 The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
 
-> **Project status:** pre-1.0. The core workflow is usable, but releases should
-> be treated as prereleases until the manual GNOME compatibility checklist is
-> complete. See [ROADMAP.md](ROADMAP.md).
+> **Project status:** stable. Ubuntu 24.04 or newer with GNOME is officially
+> supported on amd64 and arm64. See [ROADMAP.md](ROADMAP.md).
 
 ## Current feature set
 

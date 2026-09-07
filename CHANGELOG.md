@@ -5,6 +5,14 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-07
+
+### Added
+
+- First stable release after successful GNOME acceptance testing.
+- Native amd64 and arm64 release jobs now install and execute each generated package.
+- CI covers every declared Python version from 3.10 through 3.14.
+
 ## [0.3.0-rc.2] - 2026-09-07
 
 ### Changed
