@@ -5,7 +5,7 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
-## [0.3.0-rc.1] - 2026-09-04
+## [0.3.0-rc.1] - 2026-09-07
 
 ### Added
 
