@@ -40,9 +40,17 @@ jobs:
             VERSION="0.3.0~rc.1+${GITHUB_SHA::7}"
           fi
           VERSION="$VERSION" ARCH="${{ matrix.arch }}" bash scripts/build-deb.sh
-          DEB=$(ls dist/*.deb)
+          RAW_DEB=$(ls dist/*.deb)
           SOURCE_EPOCH=$(git show -s --format=%ct HEAD)
-          python3 scripts/generate-sbom.py "$DEB" --source-date-epoch "$SOURCE_EPOCH"
+          python3 scripts/generate-sbom.py "$RAW_DEB" --source-date-epoch "$SOURCE_EPOCH"
+          # GitHub release uploads normalize '~' to '.', so normalize before hashing.
+          for artifact in dist/*; do
+            SAFE_ARTIFACT="${artifact//\~/.}"
+            if [[ "$SAFE_ARTIFACT" != "$artifact" ]]; then
+              mv -- "$artifact" "$SAFE_ARTIFACT"
+            fi
+          done
+          DEB=$(ls dist/*.deb)
           (cd dist && for artifact in *.deb *.spdx.json; do sha256sum "$artifact" > "$artifact.sha256"; done)
           echo "deb=$DEB" >> "$GITHUB_OUTPUT"
           echo "sbom=$(ls dist/*.spdx.json)" >> "$GITHUB_OUTPUT"
