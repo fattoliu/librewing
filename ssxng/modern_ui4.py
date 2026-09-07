@@ -23,6 +23,7 @@ ACTION_BOTTOM = 16
 GROUP_GAP = 20
 CONTROL_GAP = 12
 
+
 def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
     button = Gtk.Button(label=label)
     if suggested:
@@ -208,7 +209,7 @@ class PreferencesApp(Adw.Application):
         return scroller
 
     def do_activate(self) -> None:
-        self.win, _toolbar, body = _window(self, tr("Preferences"), 780, 600)
+        self.win, _toolbar, body = _window(self, tr("Settings"), 780, 600)
         stack = Adw.ViewStack()
         stack.set_vexpand(True)
         stack.add_named(self._general(), "general")
@@ -288,8 +289,7 @@ class PreferencesApp(Adw.Application):
         self.http_lan = self._switch_row(tr("Allow HTTP Proxy Connections From LAN"), self.config.http_allow_lan)
         self.http_lan.set_subtitle(tr("Warning: HTTP proxy clients are not authenticated."))
         self.http_port = self._spin_row(tr("HTTP Proxy Listen Port:"), self.config.http_port, 1024)
-        self.abp_url = self._entry_row(tr("ABP PAC engine URL"), self.config.abp_template_url)
-        for row in (self.http_enabled, self.http_addr, self.http_lan, self.http_port, self.abp_url):
+        for row in (self.http_enabled, self.http_addr, self.http_lan, self.http_port):
             group.add(row)
         return self._page(group)
 
@@ -309,10 +309,7 @@ class PreferencesApp(Adw.Application):
                 parsed = urlparse(external)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     raise ValueError(tr("External PAC URL must be a valid HTTP or HTTPS URL."))
-            for label, value in (
-                ("GFWList URL", self.gfw_url.get_text().strip()),
-                ("ABP PAC engine URL", self.abp_url.get_text().strip()),
-            ):
+            for label, value in (("GFWList URL", self.gfw_url.get_text().strip()),):
                 parsed = urlparse(value)
                 if parsed.scheme != "https" or not parsed.netloc:
                     raise ValueError(tr("{label} must be a valid HTTPS URL.", label=label))
@@ -339,13 +336,12 @@ class PreferencesApp(Adw.Application):
             c.http_listen_address = self.http_addr.get_text().strip() or "127.0.0.1"
             c.http_allow_lan = self.http_lan.get_active()
             c.http_port = http
-            c.abp_template_url = self.abp_url.get_text().strip()
             c.proxy_exceptions = self.exceptions.get_text().strip()
             c.save()
             self.saved = True
             self.quit()
         except Exception as exc:
-            dialog = Adw.AlertDialog.new(tr("Preferences"), str(exc))
+            dialog = Adw.AlertDialog.new(tr("Settings"), str(exc))
             dialog.add_response("ok", tr("OK"))
             dialog.present(self.win)
 
@@ -366,7 +362,7 @@ class RulesApp(Adw.Application):
         self.saved = False
 
     def do_activate(self) -> None:
-        self.win, _toolbar, body = _window(self, tr("Edit PAC User Rules…"), 720, 520)
+        self.win, _toolbar, body = _window(self, tr("Routing Rules"), 720, 520)
         wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=CONTROL_GAP)
         wrap.set_margin_top(PAGE_PAD)
         wrap.set_margin_start(PAGE_PAD)
@@ -374,9 +370,7 @@ class RulesApp(Adw.Application):
         wrap.set_vexpand(True)
         body.append(wrap)
         hint = Gtk.Label(
-            label=tr(
-                "One rule per line. @@ rules are DIRECT; prefix ! disabled: to disable a rule."
-            ),
+            label=tr("One rule per line. @@ rules are DIRECT; prefix ! disabled: to disable a rule."),
             xalign=0,
             wrap=True,
         )

@@ -17,12 +17,6 @@ License: GPL-3+
  On Debian systems, the complete text of the GNU General Public License
  version 3 is available in /usr/share/common-licenses/GPL-3.
 
-Files: assets/upstream/*
-Copyright: ShadowsocksX-NG contributors
-License: GPL-3
- On Debian systems, the complete text of the GNU General Public License
- version 3 is available in /usr/share/common-licenses/GPL-3.
-
 Files: packaging/io.github.fattoliu.librewing.metainfo.xml
 Copyright: 2026 fattoliu and contributors
 License: FSFAP

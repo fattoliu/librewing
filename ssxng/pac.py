@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .config import ABP_TEMPLATE_FILE, AppConfig, GFWLIST_FILE
+from .config import AppConfig, GFWLIST_FILE
 from .core import connect_host
 
 DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
@@ -155,7 +155,7 @@ def _user_rule_lines(config: AppConfig) -> list[str]:
 
 
 def merged_abp_rules(config: AppConfig) -> list[str]:
-    """Merge custom rules ahead of GFWList, matching ShadowsocksX-NG precedence."""
+    """Merge custom rules ahead of GFWList with user rules taking precedence."""
     user_rules = _user_rule_lines(config)
     upstream: list[str] = []
     if config.gfwlist_enabled and GFWLIST_FILE.exists():
@@ -181,26 +181,12 @@ def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     socks_host = connect_host(config.socks_listen_address)
     socks_port = config.profile.local_port
     gfwlist_url = _require_https_url(config.gfwlist_url, "GFWList URL")
-    template_url = _require_https_url(config.abp_template_url, "ABP template URL")
     raw = _download(gfwlist_url, timeout=timeout, socks_host=socks_host, socks_port=socks_port)
     domains = parse_gfwlist(raw)
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
-    # Keep caching the upstream ShadowsocksX-NG template for compatibility and
-    # future precise-rule work, although Linux serves a compact PAC at runtime.
-    template = _download(
-        template_url,
-        timeout=timeout,
-        socks_host=socks_host,
-        socks_port=socks_port,
-    )
-    template_text = template.decode("utf-8", "strict")
-    if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
-        raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
-
     _atomic_write(GFWLIST_FILE, raw)
-    _atomic_write(ABP_TEMPLATE_FILE, template)
     config.gfwlist_updated_at = datetime.now(timezone.utc).isoformat()
     config.save()
     return len(domains)

@@ -35,8 +35,9 @@ export SOURCE_DATE_EPOCH
 
 PKG="$ROOT/dist/librewing_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/librewing_${VERSION}_${ARCH}.deb"
-ICON_ASSETS="$ROOT/assets/upstream"
-ICON_OUT="$PKG/usr/share/icons/hicolor/36x36/status"
+ICON_ASSETS="$ROOT/assets/icons"
+ICON_OUT="$PKG/usr/share/icons/hicolor/scalable/status"
+APP_ICON_OUT="$PKG/usr/share/icons/hicolor/scalable/apps"
 APP_LIB="$PKG/usr/lib/librewing"
 APP_BIN="$APP_LIB/bin"
 
@@ -55,7 +56,8 @@ mkdir -p \
   "$PKG/usr/share/man/man1" \
   "$PKG/usr/share/metainfo" \
   "$PKG/usr/share/doc/librewing" \
-  "$ICON_OUT"
+  "$ICON_OUT" \
+  "$APP_ICON_OUT"
 
 cp -R "$ROOT/ssxng" "$APP_LIB/"
 find "$APP_LIB/ssxng" -type d -name __pycache__ -prune -exec rm -rf -- {} +
@@ -154,41 +156,18 @@ bundle_simple_obfs() {
 
 bundle_simple_obfs
 
-declare -A ICONS=(
-  [librewing]="menu_icon@2x.png"
-  [librewing-disabled]="menu_icon@2x.png"
-  [librewing-pac]="menu_p_icon@2x.png"
-  [librewing-global]="menu_g_icon@2x.png"
-  [librewing-manual]="menu_m_icon@2x.png"
-)
+ICONS=(librewing librewing-disabled librewing-smart librewing-all librewing-local)
 
-for icon_name in "${!ICONS[@]}"; do
-  upstream_name="${ICONS[$icon_name]}"
-  encoded="$ICON_ASSETS/$upstream_name.b64"
-  decoded="$PKG/$upstream_name"
-  target="$ICON_OUT/$icon_name.png"
-
-  if [ ! -s "$encoded" ]; then
-    echo "Missing vendored tray icon asset: $encoded" >&2
+for icon_name in "${ICONS[@]}"; do
+  source="$ICON_ASSETS/$icon_name.svg"
+  target="$ICON_OUT/$icon_name.svg"
+  if [ ! -s "$source" ]; then
+    echo "Missing LibreWing tray icon: $source" >&2
     exit 1
   fi
-
-  base64 --decode "$encoded" > "$decoded"
-
-  case "$icon_name" in
-    librewing-disabled)
-      # Keep the off state distinct without disappearing into GNOME's dark panel.
-      python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 160 160 160
-      ;;
-    librewing-pac|librewing-global|librewing-manual|librewing)
-      python3 "$ROOT/scripts/recolor-png.py" "$decoded" "$target" 255 255 255
-      ;;
-    *)
-      cp "$decoded" "$target"
-      ;;
-  esac
-  rm -f "$decoded"
+  cp "$source" "$target"
 done
+cp "$ICON_ASSETS/librewing-app.svg" "$APP_ICON_OUT/librewing.svg"
 
 cat > "$PKG/usr/bin/librewing" <<'EOF'
 #!/usr/bin/env bash
@@ -214,7 +193,7 @@ Type=Application
 Name=LibreWing
 Comment=Shadowsocks desktop proxy client
 Exec=librewing
-Icon=network-vpn-symbolic
+Icon=librewing
 Terminal=false
 Categories=Network;
 StartupNotify=false

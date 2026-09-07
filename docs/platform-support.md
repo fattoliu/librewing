@@ -18,8 +18,8 @@ unless a release note explicitly promotes them to supported status.
 | Local HTTP proxy and PAC server | Supported | Expected to work; desktop-independent |
 | GTK4/libadwaita windows | Supported | Expected to open when GTK4/libadwaita are installed |
 | Tray menu | Supported with a StatusNotifierItem watcher | Best-effort; requires a StatusNotifierItem watcher |
-| Automatic PAC/Global system proxy | Supported through `org.gnome.system.proxy` | Unsupported; configure the desktop or applications manually |
-| Manual mode | Supported | Recommended non-GNOME mode |
+| Automatic system proxy | Supported through `org.gnome.system.proxy` | Unsupported; configure the desktop or applications manually |
+| Local Proxy Only | Supported | Recommended non-GNOME mode |
 | Start at login | Supported | Best-effort through the XDG autostart entry |
 | Screen QR scan on Wayland | Supported through the screenshot portal | Best-effort; requires `xdg-desktop-portal` and a working desktop portal backend |
 | Screen QR scan on X11 | Supported | Best-effort; requires `gnome-screenshot` or a screenshot portal |
@@ -30,17 +30,17 @@ type, and tray/portal implementation when filing compatibility bugs.
 
 ## Non-GNOME operation
 
-Use **Manual Mode**. The application keeps SOCKS5, HTTP, and PAC endpoints
+Use **Local Proxy Only**. The application keeps SOCKS5, HTTP, and PAC endpoints
 running without changing desktop-wide proxy settings. Configure applications
-with the local HTTP endpoint shown in Preferences, or use **Copy Terminal Proxy
-Command**. A typical shell setup is:
+with the local HTTP endpoint shown in Settings, or use **Copy Terminal Proxy
+Setup**. A typical shell setup is:
 
 ```bash
 export http_proxy=http://127.0.0.1:1087
 export https_proxy=http://127.0.0.1:1087
 ```
 
-PAC and Global menu modes write GNOME GSettings. On another desktop, those
+Smart Routing and All Traffic write GNOME GSettings. On another desktop, those
 values are not a supported system-proxy integration and may be ignored. Do not
 assume selecting either mode changes every application's proxy settings.
 
@@ -62,4 +62,4 @@ librewing-tool health
 - Support guarantees for third-party SIP003 plugins.
 
 Contributions adding a desktop backend need isolated integration tests and
-must preserve GNOME behavior and Manual Mode.
+must preserve GNOME behavior and Local Proxy Only.

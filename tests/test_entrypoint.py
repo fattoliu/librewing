@@ -49,3 +49,22 @@ def test_no_legacy_gtk_modules_remain():
         "ui.py",
     }
     assert legacy.isdisjoint({path.name for path in Path("ssxng").glob("*.py")})
+
+
+def test_librewing_has_its_own_tray_identity():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    build = Path("scripts/build-deb.sh").read_text(encoding="utf-8")
+    icons = {path.name for path in Path("assets/icons").glob("*.svg")}
+
+    assert all(label in app for label in ("Smart Routing", "All Traffic", "Local Proxy Only", "Custom PAC"))
+    assert all(label in app for label in ("Import Profiles", "Tools", "Diagnostics", "About LibreWing"))
+    assert {
+        "librewing.svg",
+        "librewing-disabled.svg",
+        "librewing-smart.svg",
+        "librewing-all.svg",
+        "librewing-local.svg",
+        "librewing-app.svg",
+    } <= icons
+    assert not any(Path("assets/upstream").glob("*"))
+    assert "assets/upstream" not in build

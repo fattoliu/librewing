@@ -1,7 +1,7 @@
 # Roadmap
 
-The goal is a dependable, community-maintained Ubuntu counterpart to the
-ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
+The goal is a dependable, community-maintained Shadowsocks controller with a
+focused GNOME desktop workflow, not a cross-platform control panel.
 
 ## 0.2 hardening
 
