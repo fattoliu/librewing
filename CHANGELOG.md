@@ -11,7 +11,6 @@ and releases use Semantic Versioning.
   tools, and diagnostics structure.
 - Replaced inherited paper-plane artwork with original LibreWing status and app
   icons.
-- Removed the unused upstream PAC template dependency.
 
 ## [1.1.0] - 2026-09-07
 

@@ -289,7 +289,8 @@ class PreferencesApp(Adw.Application):
         self.http_lan = self._switch_row(tr("Allow HTTP Proxy Connections From LAN"), self.config.http_allow_lan)
         self.http_lan.set_subtitle(tr("Warning: HTTP proxy clients are not authenticated."))
         self.http_port = self._spin_row(tr("HTTP Proxy Listen Port:"), self.config.http_port, 1024)
-        for row in (self.http_enabled, self.http_addr, self.http_lan, self.http_port):
+        self.abp_url = self._entry_row(tr("ABP PAC engine URL"), self.config.abp_template_url)
+        for row in (self.http_enabled, self.http_addr, self.http_lan, self.http_port, self.abp_url):
             group.add(row)
         return self._page(group)
 
@@ -309,7 +310,10 @@ class PreferencesApp(Adw.Application):
                 parsed = urlparse(external)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     raise ValueError(tr("External PAC URL must be a valid HTTP or HTTPS URL."))
-            for label, value in (("GFWList URL", self.gfw_url.get_text().strip()),):
+            for label, value in (
+                ("GFWList URL", self.gfw_url.get_text().strip()),
+                ("ABP PAC engine URL", self.abp_url.get_text().strip()),
+            ):
                 parsed = urlparse(value)
                 if parsed.scheme != "https" or not parsed.netloc:
                     raise ValueError(tr("{label} must be a valid HTTPS URL.", label=label))
@@ -336,6 +340,7 @@ class PreferencesApp(Adw.Application):
             c.http_listen_address = self.http_addr.get_text().strip() or "127.0.0.1"
             c.http_allow_lan = self.http_lan.get_active()
             c.http_port = http
+            c.abp_template_url = self.abp_url.get_text().strip()
             c.proxy_exceptions = self.exceptions.get_text().strip()
             c.save()
             self.saved = True

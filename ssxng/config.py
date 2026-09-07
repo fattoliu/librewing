@@ -17,9 +17,11 @@ APP_DIR = DEFAULT_APP_DIR
 CONFIG_FILE = APP_DIR / "config.json"
 RUNTIME_FILE = APP_DIR / "runtime.json"
 GFWLIST_FILE = APP_DIR / "gfwlist.txt"
+ABP_TEMPLATE_FILE = APP_DIR / "abp.js"
 LOG_FILE = APP_DIR / "app.log"
 
 DEFAULT_GFWLIST_URL = "https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt"
+DEFAULT_ABP_TEMPLATE_URL = "https://raw.githubusercontent.com/shadowsocks/ShadowsocksX-NG/develop/ShadowsocksX-NG/abp.js"
 DEFAULT_PROXY_EXCEPTIONS = "127.0.0.1, localhost, 192.168.0.0/16, 10.0.0.0/8, FE80::/64, ::1, FD00::/8"
 CURRENT_CONFIG_VERSION = 1
 VALID_MODES = frozenset({"off", "pac", "global", "manual", "external_pac"})
@@ -105,6 +107,7 @@ class AppConfig:
     autostart: bool = True
     custom_rules: list[str] = field(default_factory=list)
     gfwlist_url: str = DEFAULT_GFWLIST_URL
+    abp_template_url: str = DEFAULT_ABP_TEMPLATE_URL
     gfwlist_enabled: bool = True
     gfwlist_updated_at: str = ""
 
@@ -232,6 +235,7 @@ class AppConfig:
 
         text_fields = (
             "gfwlist_url",
+            "abp_template_url",
             "gfwlist_updated_at",
             "socks_listen_address",
             "http_listen_address",
