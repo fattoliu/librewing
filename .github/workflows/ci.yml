@@ -126,7 +126,8 @@ jobs:
       - name: Prepare build environment
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git procps python3 sudo
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            ca-certificates curl dbus-x11 git procps python3 sudo xauth xvfb
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run source installer
         run: |
@@ -138,5 +139,8 @@ jobs:
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("Ubuntu 26.04 packaged desktop imports OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; tray.close(); print("Ubuntu 26.04 StatusNotifier export OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 "$GITHUB_WORKSPACE/scripts/smoke-gnome-proxy.py"
+          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux bash "$GITHUB_WORKSPACE/scripts/smoke-gtk4.sh"
           ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
           timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
