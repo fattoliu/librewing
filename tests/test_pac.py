@@ -34,6 +34,20 @@ def test_custom_direct_rule_precedes_proxy(tmp_path, monkeypatch):
     assert result.index("domainMatches(directDomains, host)") < result.index("domainMatches(proxyDomains, host)")
 
 
+def test_disabled_custom_rule_is_ignored(tmp_path, monkeypatch):
+    monkeypatch.setattr(pac, "GFWLIST_FILE", tmp_path / "gfwlist.txt")
+    config = AppConfig(
+        custom_rules=["enabled.example", "! disabled: disabled.example"],
+        gfwlist_enabled=False,
+        profiles=[ServerProfile(server="example.com", password="x")],
+    )
+
+    result = pac.build_pac(config)
+
+    assert '"enabled.example"' in result
+    assert "disabled.example" not in result
+
+
 def test_global_pac_proxies_everything_except_local_hosts():
     config = AppConfig(profiles=[ServerProfile(server="example.com", password="x", local_port=1080)])
     result = pac.build_global_pac(config)

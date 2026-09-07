@@ -178,6 +178,9 @@ google.com
 
 # force direct
 @@internal.example.com
+
+# disable a rule without deleting it
+! disabled: google.com
 ```
 
 Use **Update PAC from GFWList** to refresh the remote rule list. The previous valid copy is preserved if an update fails validation.

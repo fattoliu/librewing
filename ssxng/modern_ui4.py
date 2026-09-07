@@ -374,7 +374,9 @@ class RulesApp(Adw.Application):
         wrap.set_vexpand(True)
         body.append(wrap)
         hint = Gtk.Label(
-            label=tr("One rule per line. Adblock/GFWList syntax is supported; @@ rules are DIRECT."),
+            label=tr(
+                "One rule per line. @@ rules are DIRECT; prefix ! disabled: to disable a rule."
+            ),
             xalign=0,
             wrap=True,
         )

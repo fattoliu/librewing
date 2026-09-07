@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -85,10 +86,9 @@ class NgSystemProxy(SystemProxy):
         if not GFWLIST_FILE.exists() or GFWLIST_FILE.stat().st_size == 0:
             update_gfwlist(self.config, timeout=45)
 
-        # Include the rule-file mtime in the PAC URL. GNOME/Chromium can cache a
-        # previously fetched PAC despite no-cache response headers; changing the
-        # URL guarantees a fresh fetch whenever the rule file changes.
-        revision = int(GFWLIST_FILE.stat().st_mtime_ns)
+        # GNOME/Chromium can cache PAC responses despite no-cache headers.
+        # Key the URL to all generated PAC content, including custom rules.
+        revision = hashlib.sha256(build_pac(self.config).encode()).hexdigest()[:16]
         url = f"http://127.0.0.1:{self.config.pac_port}/proxy.pac?v={revision}"
         self._gsettings("org.gnome.system.proxy", "autoconfig-url", repr(url))
         self._gsettings("org.gnome.system.proxy", "mode", "'auto'")
