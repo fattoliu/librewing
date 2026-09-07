@@ -11,6 +11,13 @@ Shadowsocks controller. LibreWing has its own Linux implementation, product
 structure, wording, and visual assets. This project is not endorsed by or
 affiliated with the upstream Shadowsocks project.
 
+Google Material Symbols
+-----------------------
+
+The LibreWing application and status icons incorporate a modified version of
+Google Material Symbols' "route" icon, licensed under Apache-2.0:
+https://github.com/google/material-design-icons
+
 simple-obfs
 -----------
 

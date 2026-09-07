@@ -9,8 +9,8 @@ and releases use Semantic Versioning.
 
 - Redesigned the tray menu around LibreWing's own connection, routing, profile,
   tools, and diagnostics structure.
-- Replaced inherited paper-plane artwork with original LibreWing status and app
-  icons.
+- Replaced inherited paper-plane artwork with a Material Symbols-based route
+  icon set and clear P/G/M routing badges.
 
 ## [1.1.0] - 2026-09-07
 

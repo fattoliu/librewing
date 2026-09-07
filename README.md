@@ -18,7 +18,7 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 
 ## Current feature set
 
-- StatusNotifierItem/DBusMenu tray UI with original LibreWing status icons
+- StatusNotifierItem/DBusMenu tray UI with LibreWing route icons and P/G/M mode badges
 - Smart Routing / All Traffic / Local Proxy Only / Custom PAC modes
 - Distinct geometric status markers for each routing mode
 - Multiple Shadowsocks server profiles and profile switching
