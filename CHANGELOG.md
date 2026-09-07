@@ -5,6 +5,15 @@ and releases use Semantic Versioning.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-07
+
+### Changed
+
+- Renamed the project to LibreWing with a distinct, independent identity.
+- Renamed the Debian package and primary commands while retaining legacy command,
+  backup, configuration, and autostart compatibility.
+- Added optional, no-benefit sponsorship links for ongoing open-source development.
+
 ## [1.0.0] - 2026-09-07
 
 ### Added

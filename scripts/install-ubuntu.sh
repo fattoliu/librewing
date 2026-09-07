@@ -21,7 +21,7 @@ cd "$ROOT"
 # though /usr/lib contains the new files. Stop only this application's launcher
 # before replacing the package so the next start always loads the new code.
 if pgrep -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' >/dev/null 2>&1; then
-  echo "Stopping running ShadowsocksX-NG Linux instance..."
+  echo "Stopping running LibreWing instance..."
   pkill -TERM -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' || true
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     if ! pgrep -f 'python3 .*ssxng\.launcher|python3 -m ssxng\.launcher' >/dev/null 2>&1; then
@@ -35,7 +35,7 @@ fi
 # system runtime dependencies and embeds obfs-local, so users do not need to
 # install shadowsocks-libev/simple-obfs manually before using the application.
 bash scripts/build-deb.sh >/dev/null
-DEB="$(ls -t dist/shadowsocksx-ng-linux_*.deb | head -n1)"
+DEB="$(ls -t dist/librewing_*.deb | head -n1)"
 
 # During development the package version may stay the same while its contents
 # change. --reinstall ensures the freshly rebuilt local .deb replaces the
@@ -48,14 +48,14 @@ if ! command -v ss-local >/dev/null 2>&1; then
   echo "Installation finished, but ss-local is missing." >&2
   exit 1
 fi
-if [ ! -x /usr/lib/shadowsocksx-ng-linux/bin/obfs-local ]; then
+if [ ! -x /usr/lib/librewing/bin/obfs-local ]; then
   echo "Installation finished, but bundled obfs-local is missing." >&2
   exit 1
 fi
 
 # Remove only stale launchers created by older pip --user based installers.
 # Never remove arbitrary user Python packages or run autoremove here.
-for app in ssx-ng-linux ssx-ng-tool; do
+for app in librewing librewing-tool ssx-ng-linux ssx-ng-tool; do
   stale="$HOME/.local/bin/$app"
   if [ -e "$stale" ] || [ -L "$stale" ]; then
     if grep -q 'site-packages\|python.*ssxng' "$stale" 2>/dev/null; then
@@ -66,19 +66,22 @@ done
 
 # Remove the old per-user desktop entry if it points at ~/.local/bin. The .deb
 # installs the canonical desktop entry under /usr/share/applications.
-USER_DESKTOP="$HOME/.local/share/applications/shadowsocksx-ng-linux.desktop"
-if [ -f "$USER_DESKTOP" ] && grep -q "$HOME/.local/bin/ssx-ng-linux" "$USER_DESKTOP"; then
-  rm -f "$USER_DESKTOP"
-fi
+for user_desktop in \
+  "$HOME/.local/share/applications/librewing.desktop" \
+  "$HOME/.local/share/applications/shadowsocksx-ng-linux.desktop"; do
+  if [ -f "$user_desktop" ] && grep -Eq "$HOME/.local/bin/(librewing|ssx-ng-linux)" "$user_desktop"; then
+    rm -f "$user_desktop"
+  fi
+done
 
 command -v update-desktop-database >/dev/null 2>&1 && sudo update-desktop-database /usr/share/applications || true
 
 echo
 echo "Installed successfully from native Debian package."
-echo "Run: /usr/bin/ssx-ng-linux"
+echo "Run: /usr/bin/librewing"
 echo "Package: $DEB"
 echo "ss-local: $(command -v ss-local)"
-echo "obfs-local: /usr/lib/shadowsocksx-ng-linux/bin/obfs-local (bundled)"
+echo "obfs-local: /usr/lib/librewing/bin/obfs-local (bundled)"
 echo "No pip, pipx, venv, or --break-system-packages is used."
 
 if systemctl is-active --quiet shadowsocks-libev-local@config.service 2>/dev/null; then

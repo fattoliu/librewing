@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .config import ServerProfile, write_private_text
 
-FORMAT = "shadowsocksx-ng-linux-servers"
+FORMAT = "librewing-servers"
 VERSION = 1
 
 

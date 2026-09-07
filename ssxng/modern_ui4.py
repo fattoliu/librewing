@@ -17,7 +17,7 @@ from .i18n import tr
 from .logs import clear_log
 from . import __version__
 
-APP_ID = "io.github.fattoliu.shadowsocksxng.Dialogs"
+APP_ID = "io.github.fattoliu.librewing.Dialogs"
 PAGE_PAD = 24
 ACTION_BOTTOM = 16
 GROUP_GAP = 20
@@ -106,7 +106,7 @@ def _compact_tab(label: str, icon_name: str, stack: Adw.ViewStack, page_name: st
 
 
 class AlertApp(Adw.Application):
-    def __init__(self, message: str, title: str = "ShadowsocksX-NG Linux") -> None:
+    def __init__(self, message: str, title: str = "LibreWing") -> None:
         super().__init__(application_id=APP_ID + ".Alert")
         self.message = message
         self.title = title
@@ -541,13 +541,13 @@ class AboutApp(Adw.Application):
     def do_activate(self) -> None:
         parent = Adw.ApplicationWindow(application=self)
         dialog = Adw.AboutDialog(
-            application_name="ShadowsocksX-NG Linux",
-            application_icon="shadowsocksx-ng-linux",
+            application_name="LibreWing",
+            application_icon="librewing",
             developer_name="fattoliu",
             version=__version__,
             comments=tr("A practical Shadowsocks desktop client for Linux/Ubuntu"),
-            website="https://github.com/fattoliu/shadowsocksx-ng-linux",
-            issue_url="https://github.com/fattoliu/shadowsocksx-ng-linux/issues",
+            website="https://github.com/fattoliu/librewing",
+            issue_url="https://github.com/fattoliu/librewing/issues",
             license_type=Gtk.License.GPL_3_0,
         )
         dialog.connect("closed", lambda *_: self.quit())
@@ -598,7 +598,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("alert")
     p.add_argument("message")
-    p.add_argument("--title", default="ShadowsocksX-NG Linux")
+    p.add_argument("--title", default="LibreWing")
     p = sub.add_parser("input")
     p.add_argument("title")
     p.add_argument("placeholder")

@@ -50,7 +50,7 @@ StatusNotifier/AppIndicator host. The proxy runtime may still be active; check
 it with:
 
 ```bash
-ssx-ng-tool health
+librewing-tool health
 ```
 
 ## Out of scope

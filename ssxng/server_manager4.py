@@ -33,7 +33,7 @@ class ServerSettingsApp(Adw.Application):
     """GTK4/libadwaita server editor isolated from the tray controller."""
 
     def __init__(self) -> None:
-        super().__init__(application_id="io.github.fattoliu.shadowsocksxng.ServerSettings")
+        super().__init__(application_id="io.github.fattoliu.librewing.ServerSettings")
         self.saved = False
         self.config = AppConfig.load()
         self.profiles = copy.deepcopy(self.config.profiles)

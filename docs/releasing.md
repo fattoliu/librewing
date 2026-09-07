@@ -13,7 +13,7 @@
    package checksum matches the `.deb`, and compare a second generation
    byte-for-byte.
 6. Install each package with `apt`, import every desktop module, run
-   `ssx-ng-tool health`, and execute the bundled `obfs-local` binary.
+   `librewing-tool health`, and execute the bundled `obfs-local` binary.
 7. Manually exercise the README release checklist on GNOME under Ubuntu 24.04
    and 26.04, including recovery after killing `ss-local`.
 8. Review `scripts/build-deb.sh` artifact URLs and SHA-256 values. Changing a
@@ -29,10 +29,10 @@ For tagged builds in a public repository, GitHub Actions creates Sigstore-backed
 SLSA provenance and an SPDX SBOM attestation. Verify both predicates with:
 
 ```bash
-gh attestation verify shadowsocksx-ng-linux_VERSION_ARCH.deb \
-  --repo fattoliu/shadowsocksx-ng-linux
-gh attestation verify shadowsocksx-ng-linux_VERSION_ARCH.deb \
-  --repo fattoliu/shadowsocksx-ng-linux \
+gh attestation verify librewing_VERSION_ARCH.deb \
+  --repo fattoliu/librewing
+gh attestation verify librewing_VERSION_ARCH.deb \
+  --repo fattoliu/librewing \
   --predicate-type https://spdx.dev/Document/v2.3
 ```
 

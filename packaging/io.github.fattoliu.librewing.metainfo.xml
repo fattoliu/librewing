@@ -4,30 +4,31 @@
   SPDX-License-Identifier: FSFAP
 -->
 <component type="desktop-application">
-  <id>io.github.fattoliu.shadowsocksxng.desktop</id>
-  <name>ShadowsocksX-NG Linux</name>
+  <id>io.github.fattoliu.librewing.desktop</id>
+  <name>LibreWing</name>
   <summary>Tray-first Shadowsocks client for GNOME and Ubuntu</summary>
   <metadata_license>FSFAP</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <launchable type="desktop-id">io.github.fattoliu.shadowsocksxng.desktop</launchable>
+  <launchable type="desktop-id">io.github.fattoliu.librewing.desktop</launchable>
   <developer id="io.github.fattoliu">
     <name>fattoliu</name>
   </developer>
   <description>
     <p>
-      ShadowsocksX-NG Linux manages local Shadowsocks, HTTP proxy, and PAC
+      LibreWing manages local Shadowsocks, HTTP proxy, and PAC
       services from a desktop tray interface. It supports server profiles,
       GFWList rules, QR import and sharing, and SIP003 plugins.
     </p>
   </description>
-  <url type="homepage">https://github.com/fattoliu/shadowsocksx-ng-linux</url>
-  <url type="bugtracker">https://github.com/fattoliu/shadowsocksx-ng-linux/issues</url>
+  <url type="homepage">https://github.com/fattoliu/librewing</url>
+  <url type="bugtracker">https://github.com/fattoliu/librewing/issues</url>
   <provides>
-    <binary>ssx-ng-linux</binary>
-    <binary>ssx-ng-tool</binary>
+    <binary>librewing</binary>
+    <binary>librewing-tool</binary>
   </provides>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.1.0" date="2026-09-07" />
     <release version="1.0.0" date="2026-09-07" />
     <release version="0.3.0-rc.2" date="2026-09-07" type="development" />
     <release version="0.3.0-rc.1" date="2026-09-07" type="development" />

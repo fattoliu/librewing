@@ -30,7 +30,7 @@ class InstanceLock:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             handle.close()
-            raise AlreadyRunningError("ShadowsocksX-NG Linux is already running") from exc
+            raise AlreadyRunningError("LibreWing is already running") from exc
         handle.seek(0)
         handle.truncate()
         handle.write(str(os.getpid()))

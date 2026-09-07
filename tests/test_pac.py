@@ -107,7 +107,7 @@ def test_compact_pac_contains_gfwlist_domains_and_whitelist(tmp_path, monkeypatc
         profiles=[ServerProfile(server="example.com", password="x", local_port=1080)],
     )
     result = pac.build_pac(config)
-    assert result.startswith("// ShadowsocksX-NG Linux compact PAC")
+    assert result.startswith("// LibreWing compact PAC")
     assert '"google.com"' in result
     assert '"youtube.com"' in result
     assert '"dl.google.com"' in result
@@ -182,7 +182,7 @@ def test_pac_server_reports_health_and_restarts(server_class):
         server.start()
         assert server.running() is True
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/proxy.pac", timeout=2) as response:
-            assert response.headers["X-ShadowsocksX-NG-Linux"] == "PAC"
+            assert response.headers["X-LibreWing"] == "PAC"
         server.restart()
         assert server.running() is True
     finally:

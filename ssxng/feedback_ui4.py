@@ -18,7 +18,7 @@ from .diagnostics import tcp_latency
 from .i18n import system_language, tr
 from .pac import update_gfwlist
 
-APP_ID = "io.github.fattoliu.shadowsocksxng.Feedback"
+APP_ID = "io.github.fattoliu.librewing.Feedback"
 ACTION_BOTTOM = 16
 
 
@@ -261,13 +261,13 @@ class AboutWindowApp(Adw.Application):
     def do_activate(self) -> None:
         win = Adw.AboutWindow(
             application=self,
-            application_name="ShadowsocksX-NG Linux",
-            application_icon="shadowsocksx-ng-linux",
+            application_name="LibreWing",
+            application_icon="librewing",
             developer_name="fattoliu",
             version=__version__,
             comments=tr("A practical Shadowsocks desktop client for Linux/Ubuntu"),
-            website="https://github.com/fattoliu/shadowsocksx-ng-linux",
-            issue_url="https://github.com/fattoliu/shadowsocksx-ng-linux/issues",
+            website="https://github.com/fattoliu/librewing",
+            issue_url="https://github.com/fattoliu/librewing/issues",
             license_type=Gtk.License.GPL_3_0,
         )
         win.connect("close-request", self._close)
@@ -283,7 +283,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     alert = sub.add_parser("alert")
     alert.add_argument("message")
-    alert.add_argument("--title", default="ShadowsocksX-NG Linux")
+    alert.add_argument("--title", default="LibreWing")
     sub.add_parser("gfwlist")
     sub.add_parser("latency")
     sub.add_parser("about")

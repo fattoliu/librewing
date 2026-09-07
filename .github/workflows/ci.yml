@@ -91,31 +91,34 @@ jobs:
         run: |
           DEB=$(ls dist/*.deb)
           dpkg-deb --info "$DEB"
-          dpkg-deb --contents "$DEB"
-          dpkg-deb --contents "$DEB" | grep -q '/usr/bin/ssx-ng-linux$'
-          dpkg-deb --contents "$DEB" | grep -q '/usr/bin/ssx-ng-tool$'
-          dpkg-deb --contents "$DEB" | grep -q '/usr/lib/shadowsocksx-ng-linux/bin/obfs-local$'
-          dpkg-deb --contents "$DEB" | grep -q '/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop$'
-          dpkg-deb --contents "$DEB" | grep -q '/usr/share/metainfo/io.github.fattoliu.shadowsocksxng.metainfo.xml$'
-          dpkg-deb --contents "$DEB" | grep -q '/usr/share/doc/shadowsocksx-ng-linux/LICENSE$'
-          ! dpkg-deb --contents "$DEB" | grep -q '__pycache__'
+          dpkg-deb --contents "$DEB" | tee /tmp/librewing-package-contents.txt
+          grep -q '/usr/bin/librewing$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/bin/librewing-tool$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/bin/ssx-ng-linux -> librewing$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/bin/ssx-ng-tool -> librewing-tool$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/lib/librewing/bin/obfs-local$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/share/applications/io.github.fattoliu.librewing.desktop$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/share/metainfo/io.github.fattoliu.librewing.metainfo.xml$' /tmp/librewing-package-contents.txt
+          grep -q '/usr/share/doc/librewing/LICENSE$' /tmp/librewing-package-contents.txt
+          ! grep -q '__pycache__' /tmp/librewing-package-contents.txt
           dpkg-deb --field "$DEB" Depends | grep -q 'shadowsocks-libev'
           dpkg-deb --field "$DEB" Depends | grep -q 'gir1.2-dbusmenu-glib-0.4'
+          dpkg-deb --field "$DEB" Replaces | grep -q 'shadowsocksx-ng-linux'
           python3 -c 'import glob,json; data=json.load(open(glob.glob("dist/*.spdx.json")[0])); assert data["spdxVersion"] == "SPDX-2.3" and data["packages"][0]["filesAnalyzed"]'
           EXTRACTED=$(mktemp -d)
           dpkg-deb --extract "$DEB" "$EXTRACTED"
-          desktop-file-validate "$EXTRACTED/usr/share/applications/io.github.fattoliu.shadowsocksxng.desktop"
-          appstreamcli validate --no-net "$EXTRACTED/usr/share/metainfo/io.github.fattoliu.shadowsocksxng.metainfo.xml"
+          desktop-file-validate "$EXTRACTED/usr/share/applications/io.github.fattoliu.librewing.desktop"
+          appstreamcli validate --no-net "$EXTRACTED/usr/share/metainfo/io.github.fattoliu.librewing.metainfo.xml"
       - name: Install and execute packaged runtime
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ./dist/*.deb
-          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/librewing/ssxng
           cd /tmp
-          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("installed GTK4 application imports OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
-          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
-          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
+          PYTHONPATH=/usr/lib/librewing /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/librewing/"); print("installed GTK4 application imports OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
+          ! ldd /usr/lib/librewing/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/librewing/bin/obfs-local -h >/dev/null
 
   ubuntu-26-package-smoke:
     name: Ubuntu 26.04 package smoke
@@ -136,11 +139,11 @@ jobs:
       - name: Verify Python 3.14 desktop runtime
         run: |
           python3 -c 'import sys; assert sys.version_info[:2] == (3, 14), sys.version'
-          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/shadowsocksx-ng-linux/ssxng
+          PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/librewing/ssxng
           cd /tmp
-          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/shadowsocksx-ng-linux/"); print("Ubuntu 26.04 packaged desktop imports OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; tray.close(); print("Ubuntu 26.04 StatusNotifier export OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/shadowsocksx-ng-linux python3 "$GITHUB_WORKSPACE/scripts/smoke-gnome-proxy.py"
-          PYTHONPATH=/usr/lib/shadowsocksx-ng-linux bash "$GITHUB_WORKSPACE/scripts/smoke-gtk4.sh"
-          ! ldd /usr/lib/shadowsocksx-ng-linux/bin/obfs-local | grep -q 'not found'
-          timeout 5 /usr/lib/shadowsocksx-ng-linux/bin/obfs-local -h >/dev/null
+          PYTHONPATH=/usr/lib/librewing python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/librewing/"); print("Ubuntu 26.04 packaged desktop imports OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; tray.close(); print("Ubuntu 26.04 StatusNotifier export OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 "$GITHUB_WORKSPACE/scripts/smoke-gnome-proxy.py"
+          PYTHONPATH=/usr/lib/librewing bash "$GITHUB_WORKSPACE/scripts/smoke-gtk4.sh"
+          ! ldd /usr/lib/librewing/bin/obfs-local | grep -q 'not found'
+          timeout 5 /usr/lib/librewing/bin/obfs-local -h >/dev/null

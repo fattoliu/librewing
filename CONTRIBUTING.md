@@ -1,14 +1,14 @@
 # Contributing
 
-Thank you for helping improve ShadowsocksX-NG Linux. Bug reports, Ubuntu
+Thank you for helping improve LibreWing. Bug reports, Ubuntu
 compatibility findings, documentation improvements, translations, tests, and
 code contributions are welcome.
 
 ## Before opening an issue
 
 1. Search existing issues.
-2. Run `ssx-ng-tool health`.
-3. Check the application log reported by `ssx-ng-tool log-path`.
+2. Run `librewing-tool health`.
+3. Check the application log reported by `librewing-tool log-path`.
 4. Remove passwords and `ss://` URLs before posting diagnostics publicly.
 
 Security vulnerabilities must follow [SECURITY.md](SECURITY.md) instead of a
@@ -55,7 +55,7 @@ desktop, version, session type, and tray or portal backend in test results.
 - Keep each pull request focused and explain user-visible behavior.
 - Add regression tests for fixes and tests for new non-UI behavior.
 - Include screenshots for UI changes under both light and dark themes.
-- Do not commit server credentials, QR codes, generated `.deb` files, logs, or
+- Do not commit server credentials, server-profile QR codes, generated `.deb` files, logs, or
   local configuration.
 - Use English Conventional Commits such as `fix(pac): preserve cached rules`.
 - Use bullet points in commit bodies when a body is needed.

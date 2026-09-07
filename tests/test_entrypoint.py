@@ -3,7 +3,7 @@ from pathlib import Path
 
 def test_desktop_entrypoint_uses_launcher():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
-    assert 'ssx-ng-linux = "ssxng.launcher:main"' in pyproject
+    assert 'librewing = "ssxng.launcher:main"' in pyproject
 
 
 def test_launcher_uses_status_notifier_tray_and_ng_runtime():
