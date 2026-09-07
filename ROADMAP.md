@@ -11,7 +11,7 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 - [x] Add HTTP/SOCKS bridge integration tests.
 - [x] Prevent accidental unauthenticated LAN exposure.
 - [ ] Complete hands-on GNOME testing on Ubuntu 24.04 and 26.04.
-- [ ] Publish the first signed prerelease packages.
+- [x] Publish the first signed prerelease packages.
 
 ## 0.3 architecture
 
