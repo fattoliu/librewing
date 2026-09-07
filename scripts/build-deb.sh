@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VERSION:-0.3.0~rc.1}"
+VERSION="${VERSION:-$(python3 "$ROOT/scripts/project_version.py" --format debian)}"
 ARCH="${ARCH:-amd64}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-24.04}"
 UBUNTU_SERIES="${UBUNTU_SERIES:-noble}"

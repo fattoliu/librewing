@@ -37,7 +37,7 @@ jobs:
               VERSION="${VERSION_BASE}~${VERSION_PRERELEASE}"
             fi
           else
-            VERSION="0.3.0~rc.1+${GITHUB_SHA::7}"
+            VERSION="$(python3 scripts/project_version.py --format debian)+${GITHUB_SHA::7}"
           fi
           VERSION="$VERSION" ARCH="${{ matrix.arch }}" bash scripts/build-deb.sh
           RAW_DEB=$(ls dist/*.deb)
