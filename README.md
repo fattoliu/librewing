@@ -251,3 +251,9 @@ GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete license and
 [NOTICE](NOTICE) for upstream assets and bundled third-party software.
 
 This project is not an official Shadowsocks project.
+
+## Support development
+
+LibreWing remains free software. Optional sponsorship funds development and
+does not provide proxy services, servers, subscriptions, access rights, paid
+features, or priority support. See [SPONSORS.md](SPONSORS.md).
