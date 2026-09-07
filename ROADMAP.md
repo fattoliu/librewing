@@ -10,7 +10,8 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 - [x] Pin bundled simple-obfs artifacts.
 - [x] Add HTTP/SOCKS bridge integration tests.
 - [x] Prevent accidental unauthenticated LAN exposure.
-- [ ] Complete hands-on GNOME testing on Ubuntu 24.04 and 26.04.
+- [ ] Complete [hands-on GNOME testing](https://github.com/fattoliu/shadowsocksx-ng-linux/issues/10)
+  on Ubuntu 24.04 and 26.04.
 - [x] Publish the first signed prerelease packages.
 
 ## 0.3 architecture
@@ -26,4 +27,5 @@ ShadowsocksX-NG desktop workflow, not a line-for-line macOS port.
 - [x] Add deterministic SPDX SBOMs and signed public-release provenance.
 - [x] Complete accessibility and Simplified Chinese/Traditional Chinese review.
 - [x] Document support boundaries for non-GNOME desktops.
-- [ ] Maintain a release candidate without critical defects before 1.0.
+- [ ] Maintain the [current release candidate](https://github.com/fattoliu/shadowsocksx-ng-linux/issues/10)
+  without critical defects before 1.0.
