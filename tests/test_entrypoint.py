@@ -68,3 +68,4 @@ def test_librewing_has_its_own_tray_identity():
     } <= icons
     assert not any(Path("assets/upstream").glob("*"))
     assert "assets/upstream" not in build
+    assert "librsvg2-common" in build
