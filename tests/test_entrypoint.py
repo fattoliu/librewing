@@ -60,6 +60,8 @@ def test_librewing_has_its_own_tray_identity():
     assert all(label in app for label in ("Import Servers", "Tools", "Diagnostics", "About LibreWing"))
     assert "Routing: {mode}" not in app
     assert 'profiles = _menu_item(tr("Servers"))' in app
+    assert 'selected_mode = self.config.mode if self.config.mode != "off" else "pac"' in app
+    assert 'tr("Please configure a server before connecting.")' in app
     assert {
         "librewing.svg",
         "librewing-disabled.svg",

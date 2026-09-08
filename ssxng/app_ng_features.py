@@ -331,6 +331,7 @@ class NgTrayApp:
 
     def rebuild_menu(self) -> None:
         running = self.core.running()
+        selected_mode = self.config.mode if self.config.mode != "off" else "pac"
         self.update_indicator_icon()
         root = Dbusmenu.Menuitem.new()
         root.property_set_bool(Dbusmenu.MENUITEM_PROP_VISIBLE, True)
@@ -359,7 +360,7 @@ class NgTrayApp:
                     lambda mode=mode: self.on_mode(mode),
                     enabled=enabled,
                     toggle=True,
-                    active=self.config.mode == mode,
+                    active=selected_mode == mode,
                 )
             )
         add(_menu_item(separator=True))
@@ -420,6 +421,11 @@ class NgTrayApp:
             except Exception as exc:
                 self.alert(f"Failed to stop Shadowsocks:\n{exc}")
         else:
+            profile = self.config.profile
+            if not profile.server.strip() or not profile.password:
+                self.alert(tr("Please configure a server before connecting."))
+                self.rebuild_menu()
+                return
             if self.config.mode == "off":
                 self.config.mode = "pac"
                 self.config.save()
