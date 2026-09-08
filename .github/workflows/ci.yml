@@ -116,7 +116,7 @@ jobs:
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache /usr/bin/python3 -m compileall -q /usr/lib/librewing/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/librewing /usr/bin/python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/librewing/"); print("installed GTK4 application imports OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; width, height, pixels=pixmap.unpack()[0]; assert (width, height, len(pixels)) == (36, 36, 36 * 36 * 4); tray.close(); print("installed StatusNotifier icon export OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing /usr/bin/python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); images=pixmap.unpack(); assert [(w, h, len(p)) for w, h, p in images] == [(22, 22, 22 * 22 * 4), (44, 44, 44 * 44 * 4)]; tray.close(); print("installed StatusNotifier icon export OK")'
           ! ldd /usr/lib/librewing/bin/obfs-local | grep -q 'not found'
           timeout 5 /usr/lib/librewing/bin/obfs-local -h >/dev/null
 
@@ -142,7 +142,7 @@ jobs:
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/librewing/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/librewing python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/librewing/"); print("Ubuntu 26.04 packaged desktop imports OK")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 1; tray.close(); print("Ubuntu 26.04 StatusNotifier export OK")'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); pixmap=tray._get_property(None, None, None, None, "IconPixmap"); assert pixmap.n_children() == 2; tray.close(); print("Ubuntu 26.04 StatusNotifier export OK")'
           dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 "$GITHUB_WORKSPACE/scripts/smoke-gnome-proxy.py"
           PYTHONPATH=/usr/lib/librewing bash "$GITHUB_WORKSPACE/scripts/smoke-gtk4.sh"
           ! ldd /usr/lib/librewing/bin/obfs-local | grep -q 'not found'

@@ -122,32 +122,35 @@ class StatusNotifierItem:
     @staticmethod
     def _icon_pixmap(icon_name: str) -> GLib.Variant:
         path = Path(TRAY_ICON_THEME_PATH) / "scalable/status" / f"{icon_name}.svg"
-        try:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), 36, 36, True)
-        except GLib.Error:
-            return GLib.Variant("a(iiay)", [])
+        images = []
+        for size in (22, 44):
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), size, size, True)
+            except GLib.Error:
+                return GLib.Variant("a(iiay)", [])
 
-        width = pixbuf.get_width()
-        height = pixbuf.get_height()
-        channels = pixbuf.get_n_channels()
-        rowstride = pixbuf.get_rowstride()
-        source = pixbuf.get_pixels()
-        argb = bytearray()
-        for y in range(height):
-            row = y * rowstride
-            for x in range(width):
-                offset = row + x * channels
-                red, green, blue = source[offset : offset + 3]
-                alpha = source[offset + 3] if channels == 4 else 255
-                argb.extend(
-                    (
-                        alpha,
-                        red * alpha // 255,
-                        green * alpha // 255,
-                        blue * alpha // 255,
+            width = pixbuf.get_width()
+            height = pixbuf.get_height()
+            channels = pixbuf.get_n_channels()
+            rowstride = pixbuf.get_rowstride()
+            source = pixbuf.get_pixels()
+            argb = bytearray()
+            for y in range(height):
+                row = y * rowstride
+                for x in range(width):
+                    offset = row + x * channels
+                    red, green, blue = source[offset : offset + 3]
+                    alpha = source[offset + 3] if channels == 4 else 255
+                    argb.extend(
+                        (
+                            alpha,
+                            red * alpha // 255,
+                            green * alpha // 255,
+                            blue * alpha // 255,
+                        )
                     )
-                )
-        return GLib.Variant("a(iiay)", [(width, height, bytes(argb))])
+            images.append((width, height, bytes(argb)))
+        return GLib.Variant("a(iiay)", images)
 
     def __init__(self, app: NgTrayApp) -> None:
         self.app = app
@@ -328,13 +331,6 @@ class NgTrayApp:
 
     def rebuild_menu(self) -> None:
         running = self.core.running()
-        route_labels = {
-            "off": "No Routing",
-            "pac": "Smart Routing",
-            "global": "All Traffic",
-            "manual": "Manual Mode",
-            "external_pac": "Custom PAC",
-        }
         self.update_indicator_icon()
         root = Dbusmenu.Menuitem.new()
         root.property_set_bool(Dbusmenu.MENUITEM_PROP_VISIBLE, True)
@@ -351,14 +347,13 @@ class NgTrayApp:
         )
         add(_menu_item(separator=True))
 
-        route = _menu_item(tr("Routing: {mode}", mode=tr(route_labels.get(self.config.mode, "No Routing"))))
         for label, mode, enabled in (
             ("Smart Routing", "pac", True),
             ("All Traffic", "global", True),
             ("Manual Mode", "manual", True),
             ("Custom PAC", "external_pac", bool(self.config.external_pac_url.strip())),
         ):
-            route.child_append(
+            add(
                 _menu_item(
                     tr(label),
                     lambda mode=mode: self.on_mode(mode),
@@ -367,9 +362,9 @@ class NgTrayApp:
                     active=self.config.mode == mode,
                 )
             )
-        add(route)
+        add(_menu_item(separator=True))
 
-        profiles = _menu_item(tr("Profile: {name}", name=self.config.profile.name))
+        profiles = _menu_item(tr("Servers"))
         for index, profile in enumerate(self.config.profiles):
             profiles.child_append(
                 _menu_item(
@@ -380,12 +375,12 @@ class NgTrayApp:
                 )
             )
         profiles.child_append(_menu_item(separator=True))
-        profiles.child_append(_menu_item(tr("Manage Profiles…"), self.on_edit_server))
+        profiles.child_append(_menu_item(tr("Server Settings…"), self.on_edit_server))
         add(profiles)
-        add(_menu_item(tr("Test Current Profile"), self.on_test_latency))
+        add(_menu_item(tr("Ping Server"), self.on_test_latency))
         add(_menu_item(separator=True))
 
-        imports = _menu_item(tr("Import Profiles"))
+        imports = _menu_item(tr("Import Servers"))
         imports.child_append(_menu_item(tr("From Screen QR…"), self.on_scan_screen_qr))
         imports.child_append(_menu_item(tr("From Clipboard"), self.on_import_clipboard))
         imports.child_append(_menu_item(tr("From ss:// Link…"), self.on_import_url))
@@ -397,9 +392,9 @@ class NgTrayApp:
         tools.child_append(_menu_item(tr("Refresh Smart Routing Rules"), self.on_update_gfwlist))
         tools.child_append(_menu_item(tr("Edit Routing Rules…"), self.on_edit_rules))
         tools.child_append(_menu_item(separator=True))
-        tools.child_append(_menu_item(tr("Export Profiles…"), self.on_export_server_file))
-        tools.child_append(_menu_item(tr("Share Current Profile…"), self.on_share_server))
-        tools.child_append(_menu_item(tr("Example Profile File…"), self.on_show_example_server_file))
+        tools.child_append(_menu_item(tr("Export Servers…"), self.on_export_server_file))
+        tools.child_append(_menu_item(tr("Share Current Server…"), self.on_share_server))
+        tools.child_append(_menu_item(tr("Example Server File…"), self.on_show_example_server_file))
         add(tools)
         add(_menu_item(tr("Settings…"), self.on_preferences))
         add(_menu_item(separator=True))

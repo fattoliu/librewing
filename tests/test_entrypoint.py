@@ -57,7 +57,9 @@ def test_librewing_has_its_own_tray_identity():
     icons = {path.name for path in Path("assets/icons").glob("*.svg")}
 
     assert all(label in app for label in ("Smart Routing", "All Traffic", "Manual Mode", "Custom PAC"))
-    assert all(label in app for label in ("Import Profiles", "Tools", "Diagnostics", "About LibreWing"))
+    assert all(label in app for label in ("Import Servers", "Tools", "Diagnostics", "About LibreWing"))
+    assert "Routing: {mode}" not in app
+    assert 'profiles = _menu_item(tr("Servers"))' in app
     assert {
         "librewing.svg",
         "librewing-disabled.svg",
