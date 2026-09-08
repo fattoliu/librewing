@@ -56,7 +56,7 @@ def test_librewing_has_its_own_tray_identity():
     build = Path("scripts/build-deb.sh").read_text(encoding="utf-8")
     icons = {path.name for path in Path("assets/icons").glob("*.svg")}
 
-    assert all(label in app for label in ("Smart Routing", "All Traffic", "Local Proxy Only", "Custom PAC"))
+    assert all(label in app for label in ("Smart Routing", "All Traffic", "Manual Mode", "Custom PAC"))
     assert all(label in app for label in ("Import Profiles", "Tools", "Diagnostics", "About LibreWing"))
     assert {
         "librewing.svg",

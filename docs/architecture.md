@@ -13,7 +13,7 @@ The tray process coordinates four services:
 3. `NgPacServer` serves PAC responses generated from GFWList and user rules.
 4. `NgSystemProxy` applies GNOME proxy settings through `gsettings`.
 
-Only item 4 is desktop-specific. Non-GNOME users run Local Proxy Only and configure
+Only item 4 is desktop-specific. Non-GNOME users run Manual Mode and configure
 applications or their desktop proxy backend themselves. See
 [Platform support](platform-support.md) for the maintained boundary.
 

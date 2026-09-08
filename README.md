@@ -19,7 +19,7 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 ## Current feature set
 
 - StatusNotifierItem/DBusMenu tray UI with LibreWing route icons and P/G/M mode badges
-- Smart Routing / All Traffic / Local Proxy Only / Custom PAC modes
+- Smart Routing / All Traffic / Manual Mode / Custom PAC modes
 - Distinct geometric status markers for each routing mode
 - Multiple Shadowsocks server profiles and profile switching
 - Server settings window with SIP003 plugin/plugin options
@@ -49,7 +49,7 @@ GNOME / Ubuntu tray
         └── connection mode
               │
               ├── Disconnected     → runtime stopped; GNOME proxy disabled
-              ├── Local Proxy Only → local services available; GNOME proxy disabled
+              ├── Manual Mode → local services available; GNOME proxy disabled
               ├── Smart Routing    → GNOME auto proxy → local /proxy.pac
               ├── All Traffic      → GNOME auto proxy → local /global.pac
               └── Custom PAC       → GNOME auto proxy → configured external PAC URL
@@ -72,7 +72,7 @@ Supported release baseline: Ubuntu 24.04 or newer with GNOME, on amd64 or
 arm64. Other Debian-based distributions may work but are not currently part of
 the release test matrix.
 
-Non-GNOME desktops can use Local Proxy Only with application-level HTTP/SOCKS/PAC
+Non-GNOME desktops can use Manual Mode with application-level HTTP/SOCKS/PAC
 configuration, but automatic system-proxy integration is GNOME-only. Tray and
 screen-capture support depend on the desktop's StatusNotifier and portal
 implementations. See the [platform support matrix](docs/platform-support.md).
@@ -167,7 +167,7 @@ The local PAC server uses GFWList plus user rules to decide whether a destinatio
 
 The local global PAC endpoint sends all normal traffic through the local proxy bridge. Using a PAC endpoint also avoids inconsistent SOCKS-only handling across GNOME applications.
 
-### Local Proxy Only
+### Manual Mode
 
 `ss-local` and enabled local proxy services remain available, but GNOME system proxy settings are disabled. Applications can opt in manually.
 
@@ -237,7 +237,7 @@ SBOM attestations, verifiable with `gh attestation verify`.
 
 Before tagging a release, verify:
 
-1. Smart Routing, All Traffic, Local Proxy Only and Custom PAC switching.
+1. Smart Routing, All Traffic, Manual Mode and Custom PAC switching.
 2. Browser access and terminal access through the HTTP bridge.
 3. Server switching, invalid server handling, bundled simple-obfs and port conflicts.
 4. GFWList success/failure behavior and user PAC rules.

@@ -19,7 +19,7 @@ unless a release note explicitly promotes them to supported status.
 | GTK4/libadwaita windows | Supported | Expected to open when GTK4/libadwaita are installed |
 | Tray menu | Supported with a StatusNotifierItem watcher | Best-effort; requires a StatusNotifierItem watcher |
 | Automatic system proxy | Supported through `org.gnome.system.proxy` | Unsupported; configure the desktop or applications manually |
-| Local Proxy Only | Supported | Recommended non-GNOME mode |
+| Manual Mode | Supported | Recommended non-GNOME mode |
 | Start at login | Supported | Best-effort through the XDG autostart entry |
 | Screen QR scan on Wayland | Supported through the screenshot portal | Best-effort; requires `xdg-desktop-portal` and a working desktop portal backend |
 | Screen QR scan on X11 | Supported | Best-effort; requires `gnome-screenshot` or a screenshot portal |
@@ -30,7 +30,7 @@ type, and tray/portal implementation when filing compatibility bugs.
 
 ## Non-GNOME operation
 
-Use **Local Proxy Only**. The application keeps SOCKS5, HTTP, and PAC endpoints
+Use **Manual Mode**. The application keeps SOCKS5, HTTP, and PAC endpoints
 running without changing desktop-wide proxy settings. Configure applications
 with the local HTTP endpoint shown in Settings, or use **Copy Terminal Proxy
 Setup**. A typical shell setup is:
@@ -62,4 +62,4 @@ librewing-tool health
 - Support guarantees for third-party SIP003 plugins.
 
 Contributions adding a desktop backend need isolated integration tests and
-must preserve GNOME behavior and Local Proxy Only.
+must preserve GNOME behavior and Manual Mode.

@@ -332,7 +332,7 @@ class NgTrayApp:
             "off": "No Routing",
             "pac": "Smart Routing",
             "global": "All Traffic",
-            "manual": "Local Proxy Only",
+            "manual": "Manual Mode",
             "external_pac": "Custom PAC",
         }
         self.update_indicator_icon()
@@ -355,7 +355,7 @@ class NgTrayApp:
         for label, mode, enabled in (
             ("Smart Routing", "pac", True),
             ("All Traffic", "global", True),
-            ("Local Proxy Only", "manual", True),
+            ("Manual Mode", "manual", True),
             ("Custom PAC", "external_pac", bool(self.config.external_pac_url.strip())),
         ):
             route.child_append(
