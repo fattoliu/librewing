@@ -281,8 +281,7 @@ class NgTrayApp:
             fail_closed=self._fail_closed,
             emit=self._runtime_event,
         )
-        self.rebuild_menu()
-        if self.config.profile.server:
+        if self.config.profile.server and self.config.mode != "off":
             try:
                 self.core.start()
                 if self.config.http_enabled:
@@ -290,6 +289,7 @@ class NgTrayApp:
                 self.restore_mode()
             except Exception:
                 pass
+        self.rebuild_menu()
 
     def alert(self, message: str) -> None:
         _spawn_helper("ssxng.feedback_ui4", "alert", str(message))

@@ -20,6 +20,14 @@ def test_launcher_uses_status_notifier_tray_and_ng_runtime():
     assert "AyatanaAppIndicator" not in app
 
 
+def test_tray_restores_only_an_active_connection_before_building_menu():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    constructor = app.split("class NgTrayApp:", 1)[1].split("    def alert", 1)[0]
+
+    assert 'if self.config.profile.server and self.config.mode != "off":' in constructor
+    assert constructor.index("self.restore_mode()") < constructor.index("self.rebuild_menu()")
+
+
 def test_tray_shutdown_fails_closed_and_stops_services():
     app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
     assert 'self.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in app
