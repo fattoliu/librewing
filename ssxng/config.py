@@ -39,12 +39,7 @@ def ensure_private_directory(path: Path) -> None:
 
 def migrate_legacy_app_dir() -> bool:
     """Move pre-LibreWing user state once without overwriting newer state."""
-    if (
-        APP_DIR != DEFAULT_APP_DIR
-        or APP_DIR.exists()
-        or LEGACY_APP_DIR.is_symlink()
-        or not LEGACY_APP_DIR.is_dir()
-    ):
+    if APP_DIR != DEFAULT_APP_DIR or APP_DIR.exists() or LEGACY_APP_DIR.is_symlink() or not LEGACY_APP_DIR.is_dir():
         return False
     APP_DIR.parent.mkdir(parents=True, exist_ok=True)
     os.replace(LEGACY_APP_DIR, APP_DIR)
@@ -116,7 +111,6 @@ class AppConfig:
     gfwlist_enabled: bool = True
     gfwlist_updated_at: str = ""
 
-    # Mirrors the useful parts of ShadowsocksX-NG's Advanced/HTTP/PAC prefs.
     socks_listen_address: str = "127.0.0.1"
     socks_allow_lan: bool = False
     socks_timeout: int = 60
@@ -222,9 +216,7 @@ class AppConfig:
             raise ValueError("SOCKS timeout must be an integer")
         if not 1 <= self.socks_timeout <= 86400:
             raise ValueError("SOCKS timeout must be from 1 to 86400 seconds")
-        if not isinstance(self.custom_rules, list) or not all(
-            isinstance(rule, str) for rule in self.custom_rules
-        ):
+        if not isinstance(self.custom_rules, list) or not all(isinstance(rule, str) for rule in self.custom_rules):
             raise ValueError("custom_rules must be a list of strings")
 
         bool_fields = (

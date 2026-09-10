@@ -4,9 +4,11 @@
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
 
-A Linux/Ubuntu desktop client inspired by [ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG), with a tray-first workflow and GNOME integration.
+A lightweight Shadowsocks desktop controller designed for GNOME and Ubuntu,
+with a tray-first workflow and native system-proxy integration.
 
-The project keeps the familiar ShadowsocksX-NG concepts—`ss-local`, SIP003 plugins, PAC/GFWList rules, server profiles and menu-bar style control—while replacing macOS-only APIs with Linux/GNOME equivalents.
+LibreWing combines `ss-local`, SIP003 plugins, GFWList rules, server profiles,
+and a local HTTP bridge behind a focused Linux desktop interface.
 
 LibreWing is an independent community project. It does not provide proxy
 servers, VPS hosting, subscriptions, accounts, or network access services.
@@ -16,9 +18,9 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 
 ## Current feature set
 
-- StatusNotifierItem/DBusMenu tray UI with upstream ShadowsocksX-NG paper-plane status icons
-- PAC / Global / Manual / External PAC modes
-- Automatic mode indicator (`P`, `G`, `M`) in the status bar
+- StatusNotifierItem/DBusMenu tray UI with LibreWing route icons and P/G/M mode badges
+- Smart Routing / All Traffic / Manual Mode / Custom PAC modes
+- Distinct geometric status markers for each routing mode
 - Multiple Shadowsocks server profiles and profile switching
 - Server settings window with SIP003 plugin/plugin options
 - `ss://` URL import, clipboard import, QR scan and QR sharing
@@ -28,7 +30,7 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 - Local PAC server with GFWList and custom user rules
 - Foreground GFWList update with cached last-known-good data
 - GNOME system proxy integration
-- Unified NG-style Preferences window: General / Advanced / HTTP / Network Interface
+- Focused Settings window: General / Advanced / HTTP / Network Interface
 - Start-at-login integration
 - Localized UI following the system locale (Simplified Chinese, Traditional Chinese, English fallback)
 - Logs, diagnostics export, update/help links
@@ -42,15 +44,15 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 ```text
 GNOME / Ubuntu tray
         │
-        ├── Preferences / server profiles / PAC rules
-        ├── QR import & sharing / latency / logs
-        └── proxy mode
+        ├── Routing / active profile
+        ├── Import / tools / diagnostics
+        └── connection mode
               │
-              ├── Off          → GNOME proxy disabled
-              ├── Manual       → local proxies kept available; system proxy disabled
-              ├── PAC          → GNOME auto proxy → local /proxy.pac
-              ├── Global       → GNOME auto proxy → local /global.pac
-              └── External PAC → GNOME auto proxy → configured external PAC URL
+              ├── Disconnected     → runtime stopped; GNOME proxy disabled
+              ├── Manual Mode → local services available; GNOME proxy disabled
+              ├── Smart Routing    → GNOME auto proxy → local /proxy.pac
+              ├── All Traffic      → GNOME auto proxy → local /global.pac
+              └── Custom PAC       → GNOME auto proxy → configured external PAC URL
                                       │
                          local HTTP bridge / SOCKS5
                                       │
@@ -153,15 +155,15 @@ export http_proxy=http://127.0.0.1:1087
 export https_proxy=http://127.0.0.1:1087
 ```
 
-The tray menu also provides **Copy Terminal Proxy Command**.
+The tray menu also provides **Tools → Copy Terminal Proxy Setup**.
 
 ## Modes
 
-### PAC Auto Mode
+### Smart Routing
 
 The local PAC server uses GFWList plus user rules to decide whether a destination should use Shadowsocks or connect directly.
 
-### Global Mode
+### All Traffic
 
 The local global PAC endpoint sends all normal traffic through the local proxy bridge. Using a PAC endpoint also avoids inconsistent SOCKS-only handling across GNOME applications.
 
@@ -169,17 +171,17 @@ The local global PAC endpoint sends all normal traffic through the local proxy b
 
 `ss-local` and enabled local proxy services remain available, but GNOME system proxy settings are disabled. Applications can opt in manually.
 
-### External PAC Auto Mode
+### Custom PAC
 
-When an HTTP/HTTPS PAC URL is configured in Preferences → Advanced, GNOME uses that external PAC URL directly.
+When an HTTP/HTTPS PAC URL is configured in Settings → Advanced, GNOME uses that external PAC URL directly.
 
-### Proxy Off
+### Disconnected
 
 GNOME proxy is disabled and the managed proxy runtime is stopped.
 
 ## PAC rules
 
-Use **Edit PAC User Rules…** from the tray menu. Examples:
+Use **Tools → Edit Routing Rules…** from the tray menu. Examples:
 
 ```text
 # proxy this domain
@@ -192,7 +194,7 @@ google.com
 ! disabled: google.com
 ```
 
-Use **Update PAC from GFWList** to refresh the remote rule list. The previous valid copy is preserved if an update fails validation.
+Use **Tools → Refresh Smart Routing Rules** to refresh the remote rule list. The previous valid copy is preserved if an update fails validation.
 
 ## Development
 
@@ -235,12 +237,12 @@ SBOM attestations, verifiable with `gh attestation verify`.
 
 Before tagging a release, verify:
 
-1. PAC, Global, Manual and External PAC mode switching.
+1. Smart Routing, All Traffic, Manual Mode and Custom PAC switching.
 2. Browser access and terminal access through the HTTP bridge.
 3. Server switching, invalid server handling, bundled simple-obfs and port conflicts.
 4. GFWList success/failure behavior and user PAC rules.
 5. Normal Quit, `Ctrl+C`, duplicate launch and recovery after an unclean previous exit.
-6. Preferences persistence and start-at-login behavior.
+6. Settings persistence and start-at-login behavior.
 7. Dialog layout, keyboard navigation, and accessible labels under light/dark themes and Simplified Chinese/Traditional Chinese/English locales.
 8. `librewing-tool health` reports all configured listeners correctly.
 9. Clean-machine `.deb` install: `ss-local` is installed automatically and bundled `obfs-local` is executable without any manual prerequisite setup.
@@ -270,6 +272,12 @@ accounts, network access, paid features, or priority support are provided.<br>
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE) for the complete license and
-[NOTICE](NOTICE) for upstream assets and bundled third-party software.
+[NOTICE](NOTICE) for acknowledgements and bundled third-party software.
 
 This project is not an official Shadowsocks project.
+
+## Acknowledgements
+
+[ShadowsocksX-NG](https://github.com/shadowsocks/ShadowsocksX-NG) helped inspire
+the original idea for a convenient desktop Shadowsocks controller. LibreWing
+uses its own Linux implementation, product structure, wording, and visual assets.

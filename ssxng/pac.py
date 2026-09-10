@@ -155,7 +155,7 @@ def _user_rule_lines(config: AppConfig) -> list[str]:
 
 
 def merged_abp_rules(config: AppConfig) -> list[str]:
-    """Merge custom rules ahead of GFWList, matching ShadowsocksX-NG precedence."""
+    """Merge custom rules ahead of GFWList with user rules taking precedence."""
     user_rules = _user_rule_lines(config)
     upstream: list[str] = []
     if config.gfwlist_enabled and GFWLIST_FILE.exists():
@@ -187,8 +187,6 @@ def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     if len(domains) < 100:
         raise ValueError("Downloaded GFWList does not contain enough valid rules")
 
-    # Keep caching the upstream ShadowsocksX-NG template for compatibility and
-    # future precise-rule work, although Linux serves a compact PAC at runtime.
     template = _download(
         template_url,
         timeout=timeout,
@@ -197,7 +195,7 @@ def update_gfwlist(config: AppConfig, timeout: int = 20) -> int:
     )
     template_text = template.decode("utf-8", "strict")
     if "__RULES__" not in template_text or "function FindProxyForURL" not in template_text:
-        raise ValueError("Downloaded ShadowsocksX-NG ABP template is invalid")
+        raise ValueError("Downloaded ABP template is invalid")
 
     _atomic_write(GFWLIST_FILE, raw)
     _atomic_write(ABP_TEMPLATE_FILE, template)

@@ -23,6 +23,7 @@ ACTION_BOTTOM = 16
 GROUP_GAP = 20
 CONTROL_GAP = 12
 
+
 def _button(label: str, callback, *, suggested: bool = False) -> Gtk.Button:
     button = Gtk.Button(label=label)
     if suggested:
@@ -208,7 +209,7 @@ class PreferencesApp(Adw.Application):
         return scroller
 
     def do_activate(self) -> None:
-        self.win, _toolbar, body = _window(self, tr("Preferences"), 780, 600)
+        self.win, _toolbar, body = _window(self, tr("Settings"), 780, 600)
         stack = Adw.ViewStack()
         stack.set_vexpand(True)
         stack.add_named(self._general(), "general")
@@ -345,7 +346,7 @@ class PreferencesApp(Adw.Application):
             self.saved = True
             self.quit()
         except Exception as exc:
-            dialog = Adw.AlertDialog.new(tr("Preferences"), str(exc))
+            dialog = Adw.AlertDialog.new(tr("Settings"), str(exc))
             dialog.add_response("ok", tr("OK"))
             dialog.present(self.win)
 
@@ -366,7 +367,7 @@ class RulesApp(Adw.Application):
         self.saved = False
 
     def do_activate(self) -> None:
-        self.win, _toolbar, body = _window(self, tr("Edit PAC User Rules…"), 720, 520)
+        self.win, _toolbar, body = _window(self, tr("Routing Rules"), 720, 520)
         wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=CONTROL_GAP)
         wrap.set_margin_top(PAGE_PAD)
         wrap.set_margin_start(PAGE_PAD)
@@ -374,9 +375,7 @@ class RulesApp(Adw.Application):
         wrap.set_vexpand(True)
         body.append(wrap)
         hint = Gtk.Label(
-            label=tr(
-                "One rule per line. @@ rules are DIRECT; prefix ! disabled: to disable a rule."
-            ),
+            label=tr("One rule per line. @@ rules are DIRECT; prefix ! disabled: to disable a rule."),
             xalign=0,
             wrap=True,
         )

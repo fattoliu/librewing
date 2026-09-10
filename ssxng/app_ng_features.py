@@ -37,10 +37,10 @@ APP_ID = "io.github.fattoliu.librewing"
 TRAY_ICON_THEME_PATH = "/usr/share/icons/hicolor"
 TRAY_ICONS = {
     "off": "librewing-disabled",
-    "pac": "librewing-pac",
-    "external_pac": "librewing-pac",
-    "global": "librewing-global",
-    "manual": "librewing-manual",
+    "pac": "librewing-smart",
+    "external_pac": "librewing-smart",
+    "global": "librewing-all",
+    "manual": "librewing-local",
 }
 
 _SNI_XML = """
@@ -121,33 +121,36 @@ class StatusNotifierItem:
 
     @staticmethod
     def _icon_pixmap(icon_name: str) -> GLib.Variant:
-        path = Path(TRAY_ICON_THEME_PATH) / "36x36/status" / f"{icon_name}.png"
-        try:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file(str(path))
-        except GLib.Error:
-            return GLib.Variant("a(iiay)", [])
+        path = Path(TRAY_ICON_THEME_PATH) / "scalable/status" / f"{icon_name}.svg"
+        images = []
+        for size in (22, 44):
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), size, size, True)
+            except GLib.Error:
+                return GLib.Variant("a(iiay)", [])
 
-        width = pixbuf.get_width()
-        height = pixbuf.get_height()
-        channels = pixbuf.get_n_channels()
-        rowstride = pixbuf.get_rowstride()
-        source = pixbuf.get_pixels()
-        argb = bytearray()
-        for y in range(height):
-            row = y * rowstride
-            for x in range(width):
-                offset = row + x * channels
-                red, green, blue = source[offset : offset + 3]
-                alpha = source[offset + 3] if channels == 4 else 255
-                argb.extend(
-                    (
-                        alpha,
-                        red * alpha // 255,
-                        green * alpha // 255,
-                        blue * alpha // 255,
+            width = pixbuf.get_width()
+            height = pixbuf.get_height()
+            channels = pixbuf.get_n_channels()
+            rowstride = pixbuf.get_rowstride()
+            source = pixbuf.get_pixels()
+            argb = bytearray()
+            for y in range(height):
+                row = y * rowstride
+                for x in range(width):
+                    offset = row + x * channels
+                    red, green, blue = source[offset : offset + 3]
+                    alpha = source[offset + 3] if channels == 4 else 255
+                    argb.extend(
+                        (
+                            alpha,
+                            red * alpha // 255,
+                            green * alpha // 255,
+                            blue * alpha // 255,
+                        )
                     )
-                )
-        return GLib.Variant("a(iiay)", [(width, height, bytes(argb))])
+            images.append((width, height, bytes(argb)))
+        return GLib.Variant("a(iiay)", images)
 
     def __init__(self, app: NgTrayApp) -> None:
         self.app = app
@@ -172,9 +175,7 @@ class StatusNotifierItem:
             None,
         )
 
-    def _method_call(
-        self, _connection, _sender, _path, _interface, method, _parameters, invocation
-    ) -> None:
+    def _method_call(self, _connection, _sender, _path, _interface, method, _parameters, invocation) -> None:
         if method in ("Activate", "SecondaryActivate"):
             self.app.on_toggle_shadowsocks()
         invocation.return_value(None)
@@ -222,15 +223,11 @@ class StatusNotifierItem:
     def set_icon(self, icon_name: str) -> None:
         if icon_name != self.icon_name:
             self.icon_name = icon_name
-            self.connection.emit_signal(
-                None, self.OBJECT_PATH, "org.kde.StatusNotifierItem", "NewIcon", None
-            )
+            self.connection.emit_signal(None, self.OBJECT_PATH, "org.kde.StatusNotifierItem", "NewIcon", None)
 
     def set_menu(self, root) -> None:
         self.menu_server.set_root(root)
-        self.connection.emit_signal(
-            None, self.OBJECT_PATH, "org.kde.StatusNotifierItem", "NewMenu", None
-        )
+        self.connection.emit_signal(None, self.OBJECT_PATH, "org.kde.StatusNotifierItem", "NewMenu", None)
 
     def close(self) -> None:
         Gio.bus_unwatch_name(self.watcher_id)
@@ -284,8 +281,7 @@ class NgTrayApp:
             fail_closed=self._fail_closed,
             emit=self._runtime_event,
         )
-        self.rebuild_menu()
-        if self.config.profile.server:
+        if self.config.profile.server and self.config.mode != "off":
             try:
                 self.core.start()
                 if self.config.http_enabled:
@@ -293,6 +289,7 @@ class NgTrayApp:
                 self.restore_mode()
             except Exception:
                 pass
+        self.rebuild_menu()
 
     def alert(self, message: str) -> None:
         _spawn_helper("ssxng.feedback_ui4", "alert", str(message))
@@ -334,6 +331,7 @@ class NgTrayApp:
 
     def rebuild_menu(self) -> None:
         running = self.core.running()
+        selected_mode = self.config.mode if self.config.mode != "off" else "pac"
         self.update_indicator_icon()
         root = Dbusmenu.Menuitem.new()
         root.property_set_bool(Dbusmenu.MENUITEM_PROP_VISIBLE, True)
@@ -341,59 +339,76 @@ class NgTrayApp:
         def add(item) -> None:
             root.child_append(item)
 
-        add(_menu_item(f"●  {tr('Shadowsocks: On') if running else tr('Shadowsocks: Off')}", enabled=False))
-        add(_menu_item(
-            tr("Turn Off Shadowsocks") if running else tr("Turn On Shadowsocks"),
-            self.on_toggle_shadowsocks,
-        ))
-        add(_menu_item(separator=True))
-        for label, mode, enabled in (
-            ("PAC Auto Mode", "pac", True),
-            ("Global Mode", "global", True),
-            ("Manual Mode", "manual", True),
-            ("External PAC Auto Mode", "external_pac", bool(self.config.external_pac_url.strip())),
-        ):
-            add(_menu_item(
-                tr(label),
-                lambda mode=mode: self.on_mode(mode),
-                enabled=enabled,
-                toggle=True,
-                active=self.config.mode == mode,
-            ))
+        add(_menu_item(tr("LibreWing: Connected") if running else tr("LibreWing: Disconnected"), enabled=False))
+        add(
+            _menu_item(
+                tr("Disconnect") if running else tr("Connect"),
+                self.on_toggle_shadowsocks,
+            )
+        )
         add(_menu_item(separator=True))
 
-        servers = _menu_item(f"{tr('Servers')} - {self.config.profile.name}")
+        for label, mode, enabled in (
+            ("Smart Routing", "pac", True),
+            ("All Traffic", "global", True),
+            ("Manual Mode", "manual", True),
+            ("Custom PAC", "external_pac", bool(self.config.external_pac_url.strip())),
+        ):
+            add(
+                _menu_item(
+                    tr(label),
+                    lambda mode=mode: self.on_mode(mode),
+                    enabled=enabled,
+                    toggle=True,
+                    active=selected_mode == mode,
+                )
+            )
+        add(_menu_item(separator=True))
+
+        profiles = _menu_item(tr("Servers"))
         for index, profile in enumerate(self.config.profiles):
-            servers.child_append(_menu_item(
-                f"{profile.name} ({profile.server}:{profile.server_port})",
-                lambda index=index: self.on_profile(index),
-                toggle=True,
-                active=index == self.config.active_profile,
-            ))
-        servers.child_append(_menu_item(separator=True))
-        servers.child_append(_menu_item(tr("Server Settings…"), self.on_edit_server))
-        add(servers)
+            profiles.child_append(
+                _menu_item(
+                    f"{profile.name} ({profile.server}:{profile.server_port})",
+                    lambda index=index: self.on_profile(index),
+                    toggle=True,
+                    active=index == self.config.active_profile,
+                )
+            )
+        profiles.child_append(_menu_item(separator=True))
+        profiles.child_append(_menu_item(tr("Server Settings…"), self.on_edit_server))
+        add(profiles)
         add(_menu_item(tr("Ping Server"), self.on_test_latency))
-        add(_menu_item(tr("Scan QR Code on Screen"), self.on_scan_screen_qr))
-        add(_menu_item(tr("Import Server URL…"), self.on_import_url))
-        add(_menu_item(tr("Import Server URLs From Clipboard"), self.on_import_clipboard))
-        add(_menu_item(tr("Import Server Configuration File…"), self.on_import_server_file))
-        add(_menu_item(tr("Export All Server Configurations…"), self.on_export_server_file))
-        add(_menu_item(tr("Show Example Server Configuration…"), self.on_show_example_server_file))
-        add(_menu_item(tr("Share Server Configuration…"), self.on_share_server))
         add(_menu_item(separator=True))
-        add(_menu_item(tr("Preferences…"), self.on_preferences))
-        add(_menu_item(tr("Copy Terminal Proxy Command"), self.on_copy_terminal_proxy_command))
-        add(_menu_item(tr("Update PAC from GFWList"), self.on_update_gfwlist))
-        add(_menu_item(tr("Edit PAC User Rules…"), self.on_edit_rules))
+
+        imports = _menu_item(tr("Import Servers"))
+        imports.child_append(_menu_item(tr("From Screen QR…"), self.on_scan_screen_qr))
+        imports.child_append(_menu_item(tr("From Clipboard"), self.on_import_clipboard))
+        imports.child_append(_menu_item(tr("From ss:// Link…"), self.on_import_url))
+        imports.child_append(_menu_item(tr("From JSON File…"), self.on_import_server_file))
+        add(imports)
+
+        tools = _menu_item(tr("Tools"))
+        tools.child_append(_menu_item(tr("Copy Terminal Proxy Setup"), self.on_copy_terminal_proxy_command))
+        tools.child_append(_menu_item(tr("Refresh Smart Routing Rules"), self.on_update_gfwlist))
+        tools.child_append(_menu_item(tr("Edit Routing Rules…"), self.on_edit_rules))
+        tools.child_append(_menu_item(separator=True))
+        tools.child_append(_menu_item(tr("Export Servers…"), self.on_export_server_file))
+        tools.child_append(_menu_item(tr("Share Current Server…"), self.on_share_server))
+        tools.child_append(_menu_item(tr("Example Server File…"), self.on_show_example_server_file))
+        add(tools)
+        add(_menu_item(tr("Settings…"), self.on_preferences))
         add(_menu_item(separator=True))
-        add(_menu_item(tr("View Logs…"), self.on_logs))
-        add(_menu_item(tr("Export Diagnostics…"), self.on_export_diagnostics))
-        add(_menu_item(tr("Check for Updates…"), self.on_check_updates))
+
+        diagnostics = _menu_item(tr("Diagnostics"))
+        diagnostics.child_append(_menu_item(tr("Activity Log…"), self.on_logs))
+        diagnostics.child_append(_menu_item(tr("Export Diagnostic Report…"), self.on_export_diagnostics))
+        diagnostics.child_append(_menu_item(tr("Check for Updates…"), self.on_check_updates))
+        add(diagnostics)
         add(_menu_item(tr("Help"), self.on_help))
-        add(_menu_item(tr("About"), self.on_about))
+        add(_menu_item(tr("About LibreWing"), self.on_about))
         add(_menu_item(separator=True))
-        add(_menu_item(tr("Quit"), self.on_quit))
+        add(_menu_item(tr("Quit LibreWing"), self.on_quit))
         self._menu_root = root
         self.indicator.set_menu(root)
 
@@ -406,6 +421,11 @@ class NgTrayApp:
             except Exception as exc:
                 self.alert(f"Failed to stop Shadowsocks:\n{exc}")
         else:
+            profile = self.config.profile
+            if not profile.server.strip() or not profile.password:
+                self.alert(tr("Please configure a server before connecting."))
+                self.rebuild_menu()
+                return
             if self.config.mode == "off":
                 self.config.mode = "pac"
                 self.config.save()
@@ -563,9 +583,7 @@ class NgTrayApp:
         except ScreenQrError as exc:
             self.alert(f"Screen QR scan failed:\n{exc}")
             return
-        count = self._append_imported(
-            import_profiles_from_text("\n".join(payloads), self.config.profiles)
-        )
+        count = self._append_imported(import_profiles_from_text("\n".join(payloads), self.config.profiles))
         if count:
             self.alert(tr("Imported {count} server(s).", count=count))
         elif payloads:
@@ -582,9 +600,7 @@ class NgTrayApp:
         def finish(clipboard, result, _data) -> None:
             try:
                 text = clipboard.read_text_finish(result) or ""
-                count = self._append_imported(
-                    import_profiles_from_text(text, self.config.profiles)
-                )
+                count = self._append_imported(import_profiles_from_text(text, self.config.profiles))
                 if count:
                     self.alert(tr("Imported {count} server(s).", count=count))
                 else:
@@ -629,9 +645,7 @@ class NgTrayApp:
             args = ["share", self.config.profile.name, url]
             qrencode = shutil.which("qrencode")
             if qrencode:
-                tmp = tempfile.NamedTemporaryFile(
-                    prefix="ssxng-share-", suffix=".png", delete=False
-                )
+                tmp = tempfile.NamedTemporaryFile(prefix="ssxng-share-", suffix=".png", delete=False)
                 qr_path = Path(tmp.name)
                 tmp.close()
                 subprocess.run(
@@ -667,9 +681,7 @@ class NgTrayApp:
             self.alert(str(exc))
 
     def on_export_server_file(self) -> None:
-        path = self._choose_file(
-            "save", tr("Export All Server Configurations…"), "shadowsocks-servers.json"
-        )
+        path = self._choose_file("save", tr("Export All Server Configurations…"), "shadowsocks-servers.json")
         if not path:
             return
         try:
@@ -688,10 +700,7 @@ class NgTrayApp:
 
     def on_copy_terminal_proxy_command(self) -> None:
         port = self.config.http_port
-        command = (
-            f"export http_proxy=http://127.0.0.1:{port}; "
-            f"export https_proxy=http://127.0.0.1:{port};"
-        )
+        command = f"export http_proxy=http://127.0.0.1:{port}; export https_proxy=http://127.0.0.1:{port};"
         display = Gdk.Display.get_default()
         if display is None:
             self.alert("No graphical clipboard is available.")
@@ -720,7 +729,7 @@ class NgTrayApp:
         )
 
     def on_export_diagnostics(self) -> None:
-        name = f"ShadowsocksX-NG_diagnose_{datetime.now():%Y%m%d_%H%M%S}.txt"
+        name = f"LibreWing_diagnostics_{datetime.now():%Y%m%d_%H%M%S}.txt"
         path = self._choose_file("save", tr("Save Diagnosis to File"), name)
         if not path:
             return
@@ -752,9 +761,7 @@ class NgTrayApp:
     def _runtime_event(self, event: RuntimeEvent) -> None:
         self.rebuild_menu()
         if event.state == "failed" and event.component == "core":
-            message = tr(
-                "Proxy core stopped unexpectedly. System proxy was disabled to keep networking available."
-            )
+            message = tr("Proxy core stopped unexpectedly. System proxy was disabled to keep networking available.")
         elif event.state == "failed":
             message = f"{event.component.upper()} service failed: {event.detail}"
         elif event.state == "restarted":

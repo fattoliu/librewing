@@ -15,8 +15,8 @@ def test_release_version_is_consistent():
     )
 
     project_version = re.search(r'^version = "([^"]+)"$', pyproject, re.MULTILINE)
-    assert project_version and project_version.group(1) == __version__ == "1.1.0"
-    assert '<release version="1.1.0"' in metadata
+    assert project_version and project_version.group(1) == __version__ == "1.2.0"
+    assert '<release version="1.2.0"' in metadata
 
     script = Path("scripts/project_version.py")
     rendered = {
@@ -29,7 +29,7 @@ def test_release_version_is_consistent():
         for kind in ("python", "release", "debian")
     }
     assert rendered == {
-        "python": "1.1.0",
-        "release": "1.1.0",
-        "debian": "1.1.0",
+        "python": "1.2.0",
+        "release": "1.2.0",
+        "debian": "1.2.0",
     }

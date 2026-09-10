@@ -13,21 +13,21 @@ def test_simplified_chinese_from_lang(monkeypatch):
     monkeypatch.delenv("LC_MESSAGES", raising=False)
     monkeypatch.setenv("LANG", "zh_CN.UTF-8")
     assert system_language() == "zh_CN"
-    assert tr("Preferences…") == "偏好设置..."
-    assert tr("PAC Auto Mode") == "PAC自动模式"
+    assert tr("Settings…") == "设置…"
+    assert tr("Smart Routing") == "智能分流"
     assert tr("Imported {count} server(s).", count=2) == "已导入 2 个服务器配置。"
 
 
 def test_traditional_chinese_from_language(monkeypatch):
     monkeypatch.setenv("LANGUAGE", "zh_TW:en_US")
     assert system_language() == "zh_TW"
-    assert tr("Quit") == "結束"
+    assert tr("Quit LibreWing") == "結束 LibreWing"
 
 
 def test_english_fallback(monkeypatch):
     monkeypatch.setenv("LANGUAGE", "de_DE")
     assert system_language() == "en"
-    assert tr("Global Mode") == "Global Mode"
+    assert tr("All Traffic") == "All Traffic"
     assert tr("Imported {count} server(s).", count=3) == "Imported 3 server(s)."
 
 

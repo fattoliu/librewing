@@ -20,6 +20,14 @@ def test_launcher_uses_status_notifier_tray_and_ng_runtime():
     assert "AyatanaAppIndicator" not in app
 
 
+def test_tray_restores_only_an_active_connection_before_building_menu():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    constructor = app.split("class NgTrayApp:", 1)[1].split("    def alert", 1)[0]
+
+    assert 'if self.config.profile.server and self.config.mode != "off":' in constructor
+    assert constructor.index("self.restore_mode()") < constructor.index("self.rebuild_menu()")
+
+
 def test_tray_shutdown_fails_closed_and_stops_services():
     app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
     assert 'self.proxy._gsettings("org.gnome.system.proxy", "mode", "\'none\'")' in app
@@ -49,3 +57,29 @@ def test_no_legacy_gtk_modules_remain():
         "ui.py",
     }
     assert legacy.isdisjoint({path.name for path in Path("ssxng").glob("*.py")})
+
+
+def test_librewing_has_its_own_tray_identity():
+    app = Path("ssxng/app_ng_features.py").read_text(encoding="utf-8")
+    build = Path("scripts/build-deb.sh").read_text(encoding="utf-8")
+    icons = {path.name for path in Path("assets/icons").iterdir() if path.is_file()}
+
+    assert all(label in app for label in ("Smart Routing", "All Traffic", "Manual Mode", "Custom PAC"))
+    assert all(label in app for label in ("Import Servers", "Tools", "Diagnostics", "About LibreWing"))
+    assert "Routing: {mode}" not in app
+    assert 'profiles = _menu_item(tr("Servers"))' in app
+    assert 'selected_mode = self.config.mode if self.config.mode != "off" else "pac"' in app
+    assert 'tr("Please configure a server before connecting.")' in app
+    assert {
+        "librewing.svg",
+        "librewing-disabled.svg",
+        "librewing-smart.svg",
+        "librewing-all.svg",
+        "librewing-local.svg",
+        "librewing-app.png",
+    } <= icons
+    assert not any(Path("assets/upstream").glob("*"))
+    assert "assets/upstream" not in build
+    assert "librsvg2-common" in build
+    assert 'Icon=librewing-app' in build
+    assert 'APP_ICON_OUT/librewing-app.png' in build

@@ -44,6 +44,19 @@ def connect_host(value: str) -> str:
     return value
 
 
+def wait_for_listener(host: str, port: int, process: subprocess.Popen[str], timeout: float = 3.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return False
+        try:
+            with socket.create_connection((connect_host(host), int(port)), timeout=0.1):
+                return True
+        except OSError:
+            time.sleep(0.05)
+    return False
+
+
 def is_loopback_address(value: str) -> bool:
     """Return whether a configured listener is restricted to this machine."""
     value = (value or "127.0.0.1").strip().strip("[]")
@@ -130,14 +143,14 @@ class ShadowsocksCore:
             text=True,
             start_new_session=True,
         )
-        time.sleep(0.2)
-        if self.process.poll() is not None:
+        if not wait_for_listener(host, profile.local_port, self.process):
             code = self.process.returncode
+            if code is None:
+                self.stop()
+                raise RuntimeError(f"ss-local did not open {connect_host(host)}:{profile.local_port} in time.")
             self.process = None
             self._close_log()
-            raise RuntimeError(
-                f"ss-local exited immediately with code {code}. Check {LOG_FILE} for details."
-            )
+            raise RuntimeError(f"ss-local exited immediately with code {code}. Check {LOG_FILE} for details.")
 
     def _close_log(self) -> None:
         if self.log_handle:
@@ -275,20 +288,14 @@ class HttpProxyCore:
             "HTTP proxy",
         )
         if not port_available(self.config.http_port, listen_host):
-            raise RuntimeError(
-                f"Local HTTP proxy port {listen_host}:{self.config.http_port} is already in use."
-            )
+            raise RuntimeError(f"Local HTTP proxy port {listen_host}:{self.config.http_port} is already in use.")
 
         config = self.config
         socks_host = connect_host(config.socks_listen_address)
 
         class Handler(socketserver.BaseRequestHandler):
             def error_response(self, status: bytes) -> None:
-                self.request.sendall(
-                    b"HTTP/1.1 " + status + b"\r\n"
-                    b"Proxy-Agent: LibreWing\r\n"
-                    b"Connection: close\r\n\r\n"
-                )
+                self.request.sendall(b"HTTP/1.1 " + status + b"\r\nProxy-Agent: LibreWing\r\nConnection: close\r\n\r\n")
 
             def handle(self) -> None:
                 client: socket.socket = self.request
@@ -355,11 +362,9 @@ class HttpProxyCore:
                             continue
                         clean_headers.append(line)
                     clean_headers.append("Connection: close")
-                    forwarded = (
-                        f"{method} {path} {version}\r\n"
-                        + "\r\n".join(clean_headers)
-                        + "\r\n\r\n"
-                    ).encode("iso-8859-1") + body_prefix
+                    forwarded = (f"{method} {path} {version}\r\n" + "\r\n".join(clean_headers) + "\r\n\r\n").encode(
+                        "iso-8859-1"
+                    ) + body_prefix
 
                     remote = _socks5_connect(socks_host, config.profile.local_port, host, int(port))
                     try:

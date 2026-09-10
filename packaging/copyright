@@ -17,15 +17,15 @@ License: GPL-3+
  On Debian systems, the complete text of the GNU General Public License
  version 3 is available in /usr/share/common-licenses/GPL-3.
 
-Files: assets/upstream/*
-Copyright: ShadowsocksX-NG contributors
-License: GPL-3
- On Debian systems, the complete text of the GNU General Public License
- version 3 is available in /usr/share/common-licenses/GPL-3.
-
 Files: packaging/io.github.fattoliu.librewing.metainfo.xml
 Copyright: 2026 fattoliu and contributors
 License: FSFAP
  Copying and distribution of this file, with or without modification, are
  permitted in any medium without royalty provided the copyright notice and
  this notice are preserved. This file is offered as-is, without any warranty.
+
+Files: assets/icons/*
+Copyright: Google LLC; 2026 fattoliu and contributors
+License: Apache-2.0
+ On Debian systems, the complete text of the Apache License version 2.0 is
+ available in /usr/share/common-licenses/Apache-2.0.

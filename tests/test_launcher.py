@@ -16,7 +16,7 @@ def test_launcher_migrates_state_before_creating_lock(monkeypatch):
 
     monkeypatch.setattr(launcher, "migrate_legacy_app_dir", lambda: events.append("migrate"))
     monkeypatch.setattr(launcher, "InstanceLock", FakeLock)
-    monkeypatch.setattr(launcher, "cleanup_managed_orphan_ss_local", lambda: None)
+    monkeypatch.setattr(launcher, "cleanup_managed_ss_local", lambda: None)
     monkeypatch.setitem(
         sys.modules,
         "ssxng.app_ng_features",
