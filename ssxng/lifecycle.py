@@ -39,21 +39,13 @@ def _same_uid(pid: int) -> bool:
     return real_uid == os.getuid()
 
 
-def _ppid(pid: int) -> int | None:
-    value = _read_status_value(pid, "PPid")
-    try:
-        return int(value) if value is not None else None
-    except ValueError:
-        return None
+def is_managed_ss_local(pid: int) -> bool:
+    """Return True only for ss-local started with our runtime file.
 
-
-def is_managed_orphan_ss_local(pid: int) -> bool:
-    """Return True only for an orphaned ss-local started with our runtime file.
-
-    Requiring the same uid, PPID 1, ss-local executable name, and the exact
-    LibreWing runtime path avoids touching unrelated user proxies.
+    Caller must hold LibreWing's single-instance lock. Same uid, executable
+    name, and exact runtime path avoid touching unrelated user proxies.
     """
-    if pid <= 1 or not _same_uid(pid) or _ppid(pid) != 1:
+    if pid <= 1 or not _same_uid(pid):
         return False
     argv = _read_cmdline(pid)
     if not argv:
@@ -65,7 +57,7 @@ def is_managed_orphan_ss_local(pid: int) -> bool:
     return any(argv[i] == "-c" and argv[i + 1] == runtime for i in range(len(argv) - 1))
 
 
-def find_managed_orphan_ss_local() -> list[int]:
+def find_managed_ss_local() -> list[int]:
     proc = Path("/proc")
     if not proc.exists():
         return []
@@ -74,14 +66,14 @@ def find_managed_orphan_ss_local() -> list[int]:
         if not entry.name.isdigit():
             continue
         pid = int(entry.name)
-        if is_managed_orphan_ss_local(pid):
+        if is_managed_ss_local(pid):
             result.append(pid)
     return result
 
 
-def cleanup_managed_orphan_ss_local(timeout: float = 1.5) -> list[int]:
+def cleanup_managed_ss_local(timeout: float = 1.5) -> list[int]:
     """Terminate stale ss-local children left after an abnormal GUI exit."""
-    pids = find_managed_orphan_ss_local()
+    pids = find_managed_ss_local()
     for pid in pids:
         try:
             os.kill(pid, signal.SIGTERM)

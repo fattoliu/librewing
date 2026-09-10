@@ -4,7 +4,7 @@ import sys
 
 from .config import migrate_legacy_app_dir
 from .instance import AlreadyRunningError, InstanceLock
-from .lifecycle import cleanup_managed_orphan_ss_local
+from .lifecycle import cleanup_managed_ss_local
 
 
 def main() -> int:
@@ -14,7 +14,7 @@ def main() -> int:
             # If the previous GUI died unexpectedly, ss-local can be reparented
             # to PID 1 and keep 1080 occupied. Reclaim only the exact same-user
             # ss-local process launched with our runtime config before starting.
-            cleanup_managed_orphan_ss_local()
+            cleanup_managed_ss_local()
 
             from .app_ng_features import main as app_main
 
