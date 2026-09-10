@@ -3,7 +3,7 @@
 All notable changes are documented here. The format follows Keep a Changelog,
 and releases use Semantic Versioning.
 
-## [Unreleased]
+## [1.2.0] - 2026-09-10
 
 ### Changed
 
@@ -11,6 +11,14 @@ and releases use Semantic Versioning.
   tools, and diagnostics structure.
 - Replaced inherited paper-plane artwork with a Material Symbols-based route
   icon set and clear P/G/M routing badges.
+- Added a distinct full-color LibreWing application icon.
+
+### Fixed
+
+- Made the first connection wait for the local SOCKS listener before enabling
+  Smart Routing.
+- Reclaimed stale LibreWing-managed proxy processes after abnormal exits.
+- Kept restored connection state, tray menus, and application icons synchronized.
 
 ## [1.1.0] - 2026-09-07
 
