@@ -167,7 +167,7 @@ for icon_name in "${ICONS[@]}"; do
   fi
   cp "$source" "$target"
 done
-cp "$ICON_ASSETS/librewing-app.png" "$APP_ICON_OUT/librewing.png"
+cp "$ICON_ASSETS/librewing-app.png" "$APP_ICON_OUT/librewing-app.png"
 
 cat > "$PKG/usr/bin/librewing" <<'EOF'
 #!/usr/bin/env bash
@@ -193,7 +193,7 @@ Type=Application
 Name=LibreWing
 Comment=Shadowsocks desktop proxy client
 Exec=librewing
-Icon=librewing
+Icon=librewing-app
 Terminal=false
 Categories=Network;
 StartupNotify=false
