@@ -1,11 +1,27 @@
-# LibreWing
+<p align="center">
+  <img src="assets/icons/librewing-app.png" alt="LibreWing" width="128">
+</p>
 
-[![CI](https://github.com/fattoliu/librewing/actions/workflows/ci.yml/badge.svg)](https://github.com/fattoliu/librewing/actions/workflows/ci.yml)
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg)](https://www.python.org/)
+<h1 align="center">LibreWing</h1>
 
-A lightweight Shadowsocks desktop controller designed for GNOME and Ubuntu,
-with a tray-first workflow and native system-proxy integration.
+<p align="center">
+  A lightweight, tray-first Shadowsocks desktop client for GNOME and Ubuntu.<br>
+  专为 GNOME 和 Ubuntu 打造的轻量 Shadowsocks 桌面客户端。
+</p>
+
+<p align="center">
+  <a href="https://github.com/fattoliu/librewing/actions/workflows/ci.yml"><img src="https://github.com/fattoliu/librewing/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/fattoliu/librewing/releases/latest"><img src="https://img.shields.io/github/v/release/fattoliu/librewing" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg" alt="GPL-3.0-or-later"></a>
+  <a href="#support-development"><img src="https://img.shields.io/badge/support-buy%20me%20a%20coffee-ffca28" alt="Support LibreWing"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="https://github.com/fattoliu/librewing/releases/latest">Download</a> ·
+  <a href="docs/platform-support.md">Platform support</a> ·
+  <a href="#support-development">Support development</a>
+</p>
 
 LibreWing combines `ss-local`, SIP003 plugins, GFWList rules, server profiles,
 and a local HTTP bridge behind a focused Linux desktop interface.
@@ -13,8 +29,44 @@ and a local HTTP bridge behind a focused Linux desktop interface.
 LibreWing is an independent community project. It does not provide proxy
 servers, VPS hosting, subscriptions, accounts, or network access services.
 
-> **Project status:** stable. Ubuntu 24.04 or newer with GNOME is officially
-> supported on amd64 and arm64. See [ROADMAP.md](ROADMAP.md).
+> **Project status:** stable. Ubuntu 24.04+ with GNOME is officially supported
+> on amd64 and arm64. LibreWing provides client software only—never proxy
+> servers, subscriptions, accounts, or network access.
+
+## Quick start
+
+Download the package for your architecture from the
+[latest release](https://github.com/fattoliu/librewing/releases/latest), then:
+
+```bash
+sudo apt install ./librewing_VERSION_ARCH.deb
+librewing
+```
+
+Source install:
+
+```bash
+git clone https://github.com/fattoliu/librewing.git
+cd librewing
+bash scripts/install-ubuntu.sh
+librewing
+```
+
+## Why LibreWing
+
+- Native GNOME system-proxy integration with a focused tray workflow
+- Smart, global, manual, and custom-PAC routing without editing system settings
+- Multiple server profiles, QR import/share, HTTP bridge, and SIP003 plugins
+- Native Debian packages with amd64/arm64 validation on clean Ubuntu runners
+- Independent Linux implementation with no GTK3 compatibility stack
+
+## Privacy and trust
+
+- No telemetry, analytics, advertising, hosted backend, or bundled proxy service
+- Credentials and runtime files stay local with owner-only permissions
+- Every release includes SHA-256 checksums, an SPDX SBOM, and build attestations
+- CI covers Python 3.10–3.14 plus Ubuntu 24.04 and 26.04 package smoke tests
+- Source, dependencies, project scope, and upstream acknowledgements are public
 
 ## Current feature set
 
@@ -258,12 +310,16 @@ A star, useful feedback, or a code contribution is equally appreciated.
   <tr>
     <th>Alipay / 支付宝</th>
     <th>WeChat Pay / 微信支付</th>
+    <th>PayPal</th>
   </tr>
   <tr>
-    <td><img src="assets/sponsor/alipay.jpg" alt="Alipay sponsorship QR code" width="260"></td>
-    <td><img src="assets/sponsor/wechat-pay.jpg" alt="WeChat Pay sponsorship QR code" width="260"></td>
+    <td><img src="assets/sponsor/alipay.jpg" alt="Alipay sponsorship QR code" width="220"></td>
+    <td><img src="assets/sponsor/wechat-pay.jpg" alt="WeChat Pay sponsorship QR code" width="220"></td>
+    <td><a href="https://www.paypal.com/paypalme/fatto666"><img src="assets/sponsor/paypal.png" alt="PayPal sponsorship QR code" width="220"></a></td>
   </tr>
 </table>
+
+<p><a href="https://www.paypal.com/paypalme/fatto666">Open PayPal / 使用 PayPal 支持</a></p>
 
 <sub>Voluntary support only. No proxy servers, VPS hosting, subscriptions,
 accounts, network access, paid features, or priority support are provided.<br>

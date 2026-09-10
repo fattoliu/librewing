@@ -3,6 +3,13 @@
 All notable changes are documented here. The format follows Keep a Changelog,
 and releases use Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Added a non-intrusive in-app project support link and PayPal sponsorship option.
+- Reworked the README around quick adoption, privacy, release trust, and project scope.
+
 ## [1.2.0] - 2026-09-10
 
 ### Changed
