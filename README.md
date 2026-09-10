@@ -35,10 +35,6 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 
 ## Screenshots
 
-<p align="center">
-  <img src="assets/screenshots/librewing-settings-demo.gif" alt="LibreWing settings walkthrough" width="720">
-</p>
-
 | Tray menu | Settings |
 | --- | --- |
 | <img src="assets/screenshots/librewing-menu.png" alt="LibreWing tray menu on Ubuntu" width="800"> | <img src="assets/screenshots/librewing-settings.png" alt="LibreWing settings on Ubuntu" width="800"> |
