@@ -37,7 +37,7 @@ PKG="$ROOT/dist/librewing_${VERSION}_${ARCH}"
 OUT="$ROOT/dist/librewing_${VERSION}_${ARCH}.deb"
 ICON_ASSETS="$ROOT/assets/icons"
 ICON_OUT="$PKG/usr/share/icons/hicolor/scalable/status"
-APP_ICON_OUT="$PKG/usr/share/icons/hicolor/scalable/apps"
+APP_ICON_OUT="$PKG/usr/share/icons/hicolor/512x512/apps"
 APP_LIB="$PKG/usr/lib/librewing"
 APP_BIN="$APP_LIB/bin"
 
@@ -167,7 +167,7 @@ for icon_name in "${ICONS[@]}"; do
   fi
   cp "$source" "$target"
 done
-cp "$ICON_ASSETS/librewing-app.svg" "$APP_ICON_OUT/librewing.svg"
+cp "$ICON_ASSETS/librewing-app.png" "$APP_ICON_OUT/librewing.png"
 
 cat > "$PKG/usr/bin/librewing" <<'EOF'
 #!/usr/bin/env bash
