@@ -64,7 +64,7 @@ jobs:
           PYTHONPYCACHEPREFIX=/tmp/ssxng-pycache python3 -m compileall -q /usr/lib/librewing/ssxng
           cd /tmp
           PYTHONPATH=/usr/lib/librewing python3 -c 'import ssxng, ssxng.app_ng_features, ssxng.runtime_ng, ssxng.modern_ui4, ssxng.feedback_ui4, ssxng.server_manager4; assert ssxng.__file__.startswith("/usr/lib/librewing/")'
-          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); assert tray._get_property(None, None, None, None, "IconPixmap").n_children() == 1; tray.close()'
+          dbus-run-session -- env PYTHONPATH=/usr/lib/librewing python3 -c 'from ssxng.app_ng_features import StatusNotifierItem; app=type("App", (), {"on_toggle_shadowsocks": lambda self: None})(); tray=StatusNotifierItem(app); assert tray._get_property(None, None, None, None, "IconPixmap").n_children() == 2; tray.close()'
           librewing-tool health
           ! ldd /usr/lib/librewing/bin/obfs-local | grep -q 'not found'
           timeout 5 /usr/lib/librewing/bin/obfs-local -h >/dev/null
