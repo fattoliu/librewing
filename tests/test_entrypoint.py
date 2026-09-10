@@ -65,7 +65,10 @@ def test_librewing_has_its_own_tray_identity():
     icons = {path.name for path in Path("assets/icons").iterdir() if path.is_file()}
 
     assert all(label in app for label in ("Smart Routing", "All Traffic", "Manual Mode", "Custom PAC"))
-    assert all(label in app for label in ("Import Servers", "Tools", "Diagnostics", "About LibreWing"))
+    assert all(
+        label in app
+        for label in ("Import Servers", "Tools", "Diagnostics", "Support LibreWing", "About LibreWing")
+    )
     assert "Routing: {mode}" not in app
     assert 'profiles = _menu_item(tr("Servers"))' in app
     assert 'selected_mode = self.config.mode if self.config.mode != "off" else "pac"' in app

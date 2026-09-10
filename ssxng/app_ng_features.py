@@ -406,6 +406,7 @@ class NgTrayApp:
         diagnostics.child_append(_menu_item(tr("Check for Updates…"), self.on_check_updates))
         add(diagnostics)
         add(_menu_item(tr("Help"), self.on_help))
+        add(_menu_item(tr("Support LibreWing"), self.on_support))
         add(_menu_item(tr("About LibreWing"), self.on_about))
         add(_menu_item(separator=True))
         add(_menu_item(tr("Quit LibreWing"), self.on_quit))
@@ -745,6 +746,9 @@ class NgTrayApp:
     def on_help(self) -> None:
         if not webbrowser.open("https://github.com/fattoliu/librewing"):
             self.alert(tr("Help text"))
+
+    def on_support(self) -> None:
+        webbrowser.open("https://github.com/fattoliu/librewing#support-development")
 
     def monitor_runtime(self) -> bool:
         if self._runtime_shutdown:
