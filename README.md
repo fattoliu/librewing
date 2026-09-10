@@ -33,6 +33,12 @@ servers, VPS hosting, subscriptions, accounts, or network access services.
 > on amd64 and arm64. LibreWing provides client software only—never proxy
 > servers, subscriptions, accounts, or network access.
 
+## Screenshots
+
+| Tray menu | Settings |
+| --- | --- |
+| <img src="assets/screenshots/librewing-menu.png" alt="LibreWing tray menu on Ubuntu" width="800"> | <img src="assets/screenshots/librewing-settings.png" alt="LibreWing settings on Ubuntu" width="800"> |
+
 ## Quick start
 
 Download the package for your architecture from the
